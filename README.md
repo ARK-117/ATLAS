@@ -18,11 +18,32 @@ Run the original prototype:
 python app.py
 ```
 
+Install prototype dependencies:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
 Run the foundation tests:
 
 ```powershell
 python -m unittest discover -s tests
 ```
+
+Create a real-trading order intent risk check:
+
+```powershell
+python app.py
+```
+
+Then in the ATLAS prompt:
+
+```text
+live policy
+intent buy NVDA 1 450 25 momentum thesis with stop defined
+```
+
+This creates and audits an order intent. It does not place a live broker order unless Live Production Mode, broker credentials, approval workflow, risk checks, and the execution adapter are configured.
 
 ## Safety Position
 

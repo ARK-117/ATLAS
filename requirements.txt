@@ -1,0 +1,4 @@
+requests
+ddgs
+trafilatura
+yfinance

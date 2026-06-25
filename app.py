@@ -1,17 +1,48 @@
 import os
 import json
-import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
-from ddgs import DDGS
-import trafilatura
-import yfinance as yf
+try:
+    import requests
+except ImportError:
+    requests = None
+
+try:
+    from ddgs import DDGS
+except ImportError:
+    DDGS = None
+
+try:
+    import trafilatura
+except ImportError:
+    trafilatura = None
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
+
+from atlas.trading import (
+    AssetClass,
+    JsonlAuditLogger,
+    LiveBrokerNotConfiguredAdapter,
+    MarketSnapshot,
+    OrderIntent,
+    OrderSide,
+    PortfolioState,
+    Position,
+    RiskEngine,
+    RiskPolicy,
+    TradingGateway,
+)
 
 
 MODEL_NAME = "llama3.2"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
 REPORTS_FOLDER = "reports"
+AUDIT_FOLDER = "audit"
+ORDER_INTENT_AUDIT_FILE = os.path.join(AUDIT_FOLDER, "order_intents.jsonl")
 DATA_FILE = "atlas_data.json"
 
 DEFAULT_DATA = {
@@ -42,6 +73,9 @@ def save_data(data):
 
 
 def ask_atlas(prompt):
+    if requests is None:
+        return "The requests package is not installed. Install dependencies before using Ollama chat."
+
     response = requests.post(
         OLLAMA_URL,
         json={
@@ -74,6 +108,9 @@ def save_report(title, report):
 
 
 def web_search(query, max_results=5):
+    if DDGS is None:
+        raise RuntimeError("The ddgs package is not installed.")
+
     results = []
 
     with DDGS() as ddgs:
@@ -88,6 +125,9 @@ def web_search(query, max_results=5):
 
 
 def read_webpage(url):
+    if trafilatura is None:
+        return ""
+
     try:
         downloaded = trafilatura.fetch_url(url)
         if not downloaded:
@@ -158,6 +198,9 @@ Source notes:
 
 
 def get_stock_price(ticker):
+    if yf is None:
+        return None
+
     try:
         stock = yf.Ticker(ticker)
         history = stock.history(period="5d")
@@ -166,6 +209,47 @@ def get_stock_price(ticker):
             return None
 
         return float(history["Close"].iloc[-1])
+    except Exception:
+        return None
+
+
+def get_market_snapshot(ticker):
+    if yf is None:
+        return None
+
+    ticker = ticker.upper().replace("$", "")
+
+    try:
+        stock = yf.Ticker(ticker)
+        history = stock.history(period="5d")
+
+        if history.empty:
+            return None
+
+        last_row = history.iloc[-1]
+        last_index = history.index[-1]
+        timestamp = last_index.to_pydatetime()
+
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        else:
+            timestamp = timestamp.astimezone(timezone.utc)
+
+        price = float(last_row["Close"])
+
+        dollar_volumes = history["Close"] * history["Volume"]
+        average_daily_dollar_volume = float(dollar_volumes.tail(5).mean())
+
+        return MarketSnapshot(
+            symbol=ticker,
+            price=price,
+            timestamp=timestamp,
+            sector="unknown",
+            asset_class=AssetClass.EQUITY,
+            average_daily_dollar_volume=average_daily_dollar_volume,
+            volatility_percent=0.0,
+            source="yfinance-delayed-daily",
+        )
     except Exception:
         return None
 
@@ -237,6 +321,147 @@ def total_exposure(data):
             total += position["shares"] * price
 
     return total
+
+
+def development_portfolio_state(data):
+    positions = {}
+    total_value = float(data["paper_cash"])
+
+    for ticker, position in data["positions"].items():
+        price = get_stock_price(ticker)
+        if not price:
+            continue
+
+        live_position = Position(
+            symbol=ticker,
+            quantity=float(position["shares"]),
+            market_price=price,
+        )
+        positions[ticker] = live_position
+        total_value += live_position.market_value
+
+    return PortfolioState(
+        account_id="local-development",
+        equity=max(total_value, 0.0),
+        cash=float(data["paper_cash"]),
+        positions=positions,
+        peak_equity=max(total_value, 0.0),
+    )
+
+
+def default_live_risk_policy():
+    return RiskPolicy()
+
+
+def live_policy_summary():
+    policy = default_live_risk_policy()
+
+    return (
+        "ATLAS live trading policy state:\n"
+        f"- Live trading enabled: {policy.live_trading_enabled}\n"
+        f"- Live Production Mode: {policy.live_production_mode}\n"
+        f"- Permission level: L{int(policy.permission_level)} {policy.permission_level.name}\n"
+        f"- Broker connection configured: {policy.broker_connection_configured}\n"
+        f"- Secure secrets management confirmed: {policy.secure_secrets_management}\n"
+        f"- User authenticated: {policy.user_authenticated}\n"
+        f"- Role permission granted: {policy.role_permission_granted}\n"
+        f"- Approval workflow enabled: {policy.approval_workflow_enabled}\n"
+        f"- Broker status healthy: {policy.broker_status_healthy}\n"
+        f"- Compliance checks passed: {policy.compliance_checks_passed}\n\n"
+        "Default development mode blocks real broker execution. "
+        "See docs/LIVE_TRADING_POLICY.md before enabling production controls."
+    )
+
+
+def create_order_intent(side_text, ticker, quantity_text, stop_loss_text, max_loss_text, reason):
+    ticker = ticker.upper().replace("$", "")
+    side_text = side_text.lower()
+
+    try:
+        side = OrderSide(side_text)
+    except ValueError:
+        return "Invalid side. Use buy or sell."
+
+    try:
+        quantity = float(quantity_text)
+        stop_loss_price = float(stop_loss_text)
+        expected_max_loss = float(max_loss_text)
+    except ValueError:
+        return "Invalid numeric value. Use: intent buy TICKER QTY STOP_LOSS EXPECTED_MAX_LOSS REASON"
+
+    if quantity <= 0:
+        return "Quantity must be greater than 0."
+
+    if stop_loss_price <= 0:
+        return "Stop-loss price must be greater than 0."
+
+    if expected_max_loss <= 0:
+        return "Expected maximum loss must be greater than 0."
+
+    if not reason.strip():
+        return "Reason is required for every real-trading order intent."
+
+    market = get_market_snapshot(ticker)
+    if not market:
+        return "Could not create market snapshot. Order intent was not created."
+
+    intent = OrderIntent(
+        symbol=ticker,
+        side=side,
+        quantity=quantity,
+        asset_class=AssetClass.EQUITY,
+        stop_loss_price=stop_loss_price,
+        expected_max_loss=expected_max_loss,
+        reason=reason.strip(),
+        data_sources_used=(market.source,),
+        created_by="local-cli",
+        strategy_id="manual-cli",
+    )
+
+    gateway = TradingGateway(
+        risk_engine=RiskEngine(),
+        broker=LiveBrokerNotConfiguredAdapter(),
+        audit_logger=JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE),
+    )
+
+    result = gateway.submit_intent(
+        intent=intent,
+        portfolio=development_portfolio_state(load_data()),
+        market=market,
+        policy=default_live_risk_policy(),
+    )
+
+    reason_lines = []
+    if result.message:
+        reason_lines = [f"- {item.strip()}" for item in result.message.split(";") if item.strip()]
+
+    lines = [
+        "ATLAS real-trading order intent risk check",
+        f"Intent ID: {intent.id}",
+        f"Symbol: {intent.symbol}",
+        f"Side: {intent.side.value}",
+        f"Quantity: {intent.quantity:g}",
+        f"Reference price source: {market.source}",
+        f"Reference price: ${market.price:.2f}",
+        f"Market data timestamp UTC: {market.timestamp.isoformat()}",
+        f"Estimated notional: ${intent.notional(market):.2f}",
+        f"Expected max loss: ${intent.expected_max_loss:.2f}",
+        f"Stop-loss price: ${intent.stop_loss_price:.2f}",
+        f"Status: {result.status}",
+        f"Accepted by execution gateway: {result.accepted}",
+        f"Audit log: {ORDER_INTENT_AUDIT_FILE}",
+    ]
+
+    if reason_lines:
+        lines.append("Blocking reasons:")
+        lines.extend(reason_lines)
+
+    lines.append(
+        "No live broker order was placed. Live broker execution requires Live Production Mode, "
+        "approved broker credentials, permissions, risk approval, audit logging, and human approval."
+    )
+
+    return "\n".join(lines)
 
 
 def paper_buy(ticker, amount):
@@ -441,6 +666,11 @@ Paper trading:
   portfolio
   check stops
 
+Real trading order intents:
+  live policy
+  intent buy NVDA 1 450 25 momentum thesis with stop defined
+  intent sell NVDA 1 500 25 risk reduction thesis
+
 Settings:
   settings
 
@@ -498,6 +728,22 @@ def main():
 
                 print("\nATLAS:\n")
                 print(paper_buy(ticker, amount))
+
+            elif lower == "live policy":
+                print("\nATLAS:\n")
+                print(live_policy_summary())
+
+            elif lower.startswith("intent "):
+                parts = command.split(maxsplit=6)
+
+                if len(parts) != 7:
+                    print("Use: intent buy TICKER QTY STOP_LOSS EXPECTED_MAX_LOSS REASON")
+                    continue
+
+                _, side, ticker, quantity, stop_loss, expected_max_loss, reason = parts
+
+                print("\nATLAS:\n")
+                print(create_order_intent(side, ticker, quantity, stop_loss, expected_max_loss, reason))
 
             elif lower == "portfolio":
                 print("\nATLAS:\n")
