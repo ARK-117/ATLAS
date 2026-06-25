@@ -6,6 +6,8 @@ This blueprint describes the production architecture that should grow around tha
 
 This document is technical planning and risk-control guidance. It is not legal, tax, accounting, brokerage, or personalized financial advice. Before live trading, consult qualified legal, compliance, tax, and brokerage professionals.
 
+The live-trading permission model in `docs/LIVE_TRADING_POLICY.md` is authoritative for production execution. It defines Live Production Mode, permission levels L0-L10, high-risk modules, human approval requirements, and the cash movement ban.
+
 ## 1. Product Boundary
 
 ATLAS should be built as a modular AI operating system where real trading is one permissioned module.
@@ -26,6 +28,7 @@ Production trading capabilities:
 - Real order submission after deterministic risk checks and human approval.
 - Real position, cash, exposure, and P/L reconciliation.
 - Real-time shutdown controls and broker-state monitoring.
+- Permissioned live trading modules defined in `docs/LIVE_TRADING_POLICY.md`, including L3 cash equities, L4 margin/short selling, L5 options, L6 futures, L7 crypto, L8 complex orders, and L9 autonomous trading.
 
 Disabled unless explicitly enabled through a protected production process:
 

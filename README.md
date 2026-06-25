@@ -29,6 +29,8 @@ python -m unittest discover -s tests
 ATLAS is intended for real trading, but live order submission must stay gated behind:
 
 - Explicit production trading configuration.
+- Live Production Mode.
+- Permission levels from `docs/LIVE_TRADING_POLICY.md`.
 - Human approval.
 - Deterministic risk checks.
 - Audit logging.
@@ -37,3 +39,6 @@ ATLAS is intended for real trading, but live order submission must stay gated be
 
 The system must never expose broker credentials to prompts, reports, logs, or client-side code.
 
+Read the live trading policy before implementing broker execution:
+
+- `docs/LIVE_TRADING_POLICY.md`

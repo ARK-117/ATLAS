@@ -4,14 +4,26 @@ from datetime import datetime
 
 from .models import (
     Approval,
+    AssetClass,
     MarketSnapshot,
     OrderIntent,
     OrderSide,
+    OrderType,
     PortfolioState,
     RiskCheckResult,
     RiskDecision,
     RiskPolicy,
+    TradingPermissionLevel,
 )
+
+COMPLEX_ORDER_TYPES = {
+    OrderType.STOP,
+    OrderType.STOP_LIMIT,
+    OrderType.TRAILING_STOP,
+    OrderType.BRACKET,
+    OrderType.OCO,
+    OrderType.MULTI_LEG,
+}
 
 
 class RiskEngine:
@@ -35,6 +47,42 @@ class RiskEngine:
         if not policy.live_trading_enabled:
             reasons.append("live trading is not enabled in risk policy")
 
+        if not policy.live_production_mode:
+            reasons.append("live production mode is not active")
+
+        if policy.permission_level < TradingPermissionLevel.LIVE_CASH_EQUITIES:
+            reasons.append("permission level is below live cash equities")
+
+        if not policy.broker_connection_configured:
+            reasons.append("broker connection is not configured")
+
+        if not policy.separate_paper_and_live_keys:
+            reasons.append("separate paper and live API keys are not confirmed")
+
+        if not policy.secure_secrets_management:
+            reasons.append("secure secrets management is not confirmed")
+
+        if not policy.user_authenticated:
+            reasons.append("user authentication is required")
+
+        if not policy.role_permission_granted:
+            reasons.append("role permission is required")
+
+        if policy.require_human_approval and not policy.approval_workflow_enabled:
+            reasons.append("approval workflow is not enabled")
+
+        if not policy.emergency_kill_switch_available:
+            reasons.append("emergency kill switch is not available")
+
+        if not policy.broker_status_healthy:
+            reasons.append("broker status is not healthy")
+
+        if not policy.compliance_checks_passed:
+            reasons.append("compliance checks have not passed")
+
+        if not policy.duplicate_order_check_passed:
+            reasons.append("duplicate order check failed")
+
         if intent.quantity <= 0:
             reasons.append("order quantity must be greater than zero")
 
@@ -44,8 +92,20 @@ class RiskEngine:
         if market.symbol.upper() != intent.symbol.upper():
             reasons.append("market snapshot symbol does not match order intent")
 
-        if market.asset_class not in policy.allowed_asset_classes:
-            reasons.append(f"asset class {market.asset_class.value} is not allowed")
+        if intent.asset_class != market.asset_class:
+            reasons.append("order intent asset class does not match market snapshot")
+
+        if intent.asset_class not in policy.allowed_asset_classes:
+            reasons.append(f"asset class {intent.asset_class.value} is not allowed")
+
+        required_permission = self._required_permission(intent.asset_class)
+        if policy.permission_level < required_permission:
+            reasons.append(
+                f"permission level is below required {required_permission.name.lower()}"
+            )
+
+        self._check_asset_module_permissions(intent, policy, reasons)
+        self._check_live_order_fields(intent, reasons)
 
         if market.is_halted:
             reasons.append("instrument is halted")
@@ -84,13 +144,42 @@ class RiskEngine:
         if intent.side == OrderSide.BUY and not policy.allow_margin and order_notional > portfolio.cash:
             reasons.append("order exceeds available cash and margin is disabled")
 
+        if intent.uses_margin:
+            if not policy.allow_margin:
+                reasons.append("margin trading is not enabled")
+            if policy.permission_level < TradingPermissionLevel.LIVE_MARGIN_AND_SHORT:
+                reasons.append("permission level is below live margin and short selling")
+
+        if intent.leverage_multiplier > 1.0:
+            if not policy.allow_leverage:
+                reasons.append("leverage is not enabled")
+            if policy.permission_level < TradingPermissionLevel.LIVE_MARGIN_AND_SHORT:
+                reasons.append("permission level is below live margin and short selling")
+            if intent.leverage_multiplier > policy.max_leverage_multiplier:
+                reasons.append("leverage multiplier exceeds configured limit")
+
+        if intent.order_type in COMPLEX_ORDER_TYPES:
+            if not policy.allow_complex_orders:
+                reasons.append("complex order types are not enabled")
+            if policy.permission_level < TradingPermissionLevel.COMPLEX_ORDERS:
+                reasons.append("permission level is below complex orders")
+
+        if intent.is_autonomous:
+            if not policy.allow_autonomous_trading:
+                reasons.append("autonomous trading is not enabled")
+            if policy.permission_level < TradingPermissionLevel.AUTONOMOUS_TRADING:
+                reasons.append("permission level is below autonomous trading")
+
         current_position = portfolio.position_for(intent.symbol)
         current_symbol_exposure = abs(current_position.market_value) if current_position else 0.0
 
         if intent.side == OrderSide.SELL:
             held_quantity = current_position.quantity if current_position else 0.0
-            if intent.quantity > held_quantity and not policy.allow_short_selling:
-                reasons.append("sell order would create a short position")
+            if intent.quantity > held_quantity:
+                if not policy.allow_short_selling:
+                    reasons.append("sell order would create a short position")
+                if policy.permission_level < TradingPermissionLevel.LIVE_MARGIN_AND_SHORT:
+                    reasons.append("permission level is below live margin and short selling")
 
         post_symbol_exposure = self._post_symbol_exposure(
             current_exposure=current_symbol_exposure,
@@ -177,3 +266,46 @@ class RiskEngine:
     ) -> float:
         return portfolio.gross_exposure - current_symbol_exposure + post_symbol_exposure
 
+    @staticmethod
+    def _required_permission(asset_class: AssetClass) -> TradingPermissionLevel:
+        match asset_class:
+            case AssetClass.EQUITY | AssetClass.ETF:
+                return TradingPermissionLevel.LIVE_CASH_EQUITIES
+            case AssetClass.OPTION:
+                return TradingPermissionLevel.LIVE_OPTIONS
+            case AssetClass.FUTURE:
+                return TradingPermissionLevel.LIVE_FUTURES
+            case AssetClass.CRYPTO:
+                return TradingPermissionLevel.LIVE_CRYPTO
+
+    @staticmethod
+    def _check_asset_module_permissions(
+        intent: OrderIntent,
+        policy: RiskPolicy,
+        reasons: list[str],
+    ) -> None:
+        if intent.asset_class == AssetClass.OPTION and not policy.allow_options:
+            reasons.append("options trading is not enabled")
+
+        if intent.asset_class == AssetClass.FUTURE and not policy.allow_futures:
+            reasons.append("futures trading is not enabled")
+
+        if intent.asset_class == AssetClass.CRYPTO and not policy.allow_crypto:
+            reasons.append("crypto trading is not enabled")
+
+    @staticmethod
+    def _check_live_order_fields(intent: OrderIntent, reasons: list[str]) -> None:
+        if intent.estimated_fees < 0:
+            reasons.append("estimated fees cannot be negative")
+
+        if intent.expected_max_loss is None or intent.expected_max_loss <= 0:
+            reasons.append("expected maximum loss is required")
+
+        if intent.stop_loss_price is None and not intent.invalidation_condition.strip():
+            reasons.append("stop-loss or invalidation condition is required")
+
+        if not intent.reason.strip():
+            reasons.append("reason for trade is required")
+
+        if not intent.data_sources_used:
+            reasons.append("data sources used are required")

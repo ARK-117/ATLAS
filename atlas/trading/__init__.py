@@ -20,6 +20,8 @@ from .models import (
     RiskCheckResult,
     RiskDecision,
     RiskPolicy,
+    TimeInForce,
+    TradingPermissionLevel,
 )
 from .risk import RiskEngine
 
@@ -42,5 +44,7 @@ __all__ = [
     "RiskEngine",
     "RiskPolicy",
     "SimulatedBrokerAdapter",
+    "TimeInForce",
     "TradingGateway",
+    "TradingPermissionLevel",
 ]
