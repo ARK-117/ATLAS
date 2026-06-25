@@ -1,0 +1,2 @@
+"""ATLAS core package."""
+
