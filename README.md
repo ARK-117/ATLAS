@@ -40,6 +40,10 @@ Then in the ATLAS prompt:
 
 ```text
 live policy
+readiness
+controls
+kill switch on reason for stopping execution
+kill switch clear CLEAR_KILL_SWITCH
 policy profiles
 policy show
 policy use paper

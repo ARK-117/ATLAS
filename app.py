@@ -53,6 +53,7 @@ ORDER_INTENT_AUDIT_FILE = os.path.join(AUDIT_FOLDER, "order_intents.jsonl")
 DATA_FILE = "atlas_data.json"
 DEFAULT_RISK_POLICY_PROFILE = "development"
 APPROVAL_CONFIRMATION = "APPROVE_LIVE_INTENT"
+KILL_SWITCH_CLEAR_CONFIRMATION = "CLEAR_KILL_SWITCH"
 
 DEFAULT_DATA = {
     "paper_cash": 10000.0,
@@ -61,6 +62,12 @@ DEFAULT_DATA = {
     "order_intents": {},
     "approvals": {},
     "active_risk_policy_profile": DEFAULT_RISK_POLICY_PROFILE,
+    "system_controls": {
+        "kill_switch_active": False,
+        "kill_switch_reason": "",
+        "kill_switch_updated_at": None,
+        "kill_switch_updated_by": "",
+    },
     "risk": {
         "max_trade_amount": 500.0,
         "max_total_exposure": 2000.0,
@@ -369,6 +376,7 @@ def total_exposure(data):
 
 
 def development_portfolio_state(data):
+    controls = data.get("system_controls", {})
     positions = {}
     total_value = float(data["paper_cash"])
 
@@ -391,6 +399,7 @@ def development_portfolio_state(data):
         cash=float(data["paper_cash"]),
         positions=positions,
         peak_equity=max(total_value, 0.0),
+        kill_switch_active=bool(controls.get("kill_switch_active", False)),
     )
 
 
@@ -401,6 +410,114 @@ def default_live_risk_policy():
         return load_risk_policy_profile(profile_name)
     except RiskPolicyConfigError:
         return RiskPolicy()
+
+
+def system_controls():
+    data = load_data()
+    return data["system_controls"]
+
+
+def system_control_summary():
+    controls = system_controls()
+    status = "ACTIVE" if controls.get("kill_switch_active") else "inactive"
+
+    return (
+        "ATLAS system controls:\n"
+        f"- Kill switch: {status}\n"
+        f"- Reason: {controls.get('kill_switch_reason') or 'none'}\n"
+        f"- Updated at: {controls.get('kill_switch_updated_at') or 'never'}\n"
+        f"- Updated by: {controls.get('kill_switch_updated_by') or 'none'}\n"
+        f"- Clear phrase: {KILL_SWITCH_CLEAR_CONFIRMATION}"
+    )
+
+
+def activate_kill_switch(reason, updated_by="local-cli"):
+    reason = reason.strip()
+    if not reason:
+        return "Kill switch activation requires a reason."
+
+    data = load_data()
+    data["system_controls"]["kill_switch_active"] = True
+    data["system_controls"]["kill_switch_reason"] = reason
+    data["system_controls"]["kill_switch_updated_at"] = utc_now().isoformat()
+    data["system_controls"]["kill_switch_updated_by"] = updated_by
+    save_data(data)
+
+    JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE).append(
+        "kill_switch_activated",
+        {
+            "reason": reason,
+            "updated_by": updated_by,
+            "updated_at": data["system_controls"]["kill_switch_updated_at"],
+        },
+    )
+
+    return (
+        "Kill switch activated. New order-intent rechecks and broker submission attempts "
+        "will be blocked until it is cleared."
+    )
+
+
+def clear_kill_switch(confirmation_text, updated_by="local-cli"):
+    if confirmation_text != KILL_SWITCH_CLEAR_CONFIRMATION:
+        return (
+            "Kill switch clear blocked. Use:\n"
+            f"kill switch clear {KILL_SWITCH_CLEAR_CONFIRMATION}"
+        )
+
+    data = load_data()
+    previous_reason = data["system_controls"].get("kill_switch_reason", "")
+    data["system_controls"]["kill_switch_active"] = False
+    data["system_controls"]["kill_switch_reason"] = ""
+    data["system_controls"]["kill_switch_updated_at"] = utc_now().isoformat()
+    data["system_controls"]["kill_switch_updated_by"] = updated_by
+    save_data(data)
+
+    JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE).append(
+        "kill_switch_cleared",
+        {
+            "previous_reason": previous_reason,
+            "updated_by": updated_by,
+            "updated_at": data["system_controls"]["kill_switch_updated_at"],
+        },
+    )
+
+    return "Kill switch cleared. Risk checks still require all normal policy controls."
+
+
+def production_readiness_report():
+    policy = default_live_risk_policy()
+    controls = system_controls()
+    checks = [
+        ("kill switch inactive", not controls.get("kill_switch_active", False)),
+        ("live trading enabled", policy.live_trading_enabled),
+        ("Live Production Mode active", policy.live_production_mode),
+        ("broker connection configured", policy.broker_connection_configured),
+        ("separate paper/live keys confirmed", policy.separate_paper_and_live_keys),
+        ("secure secrets management confirmed", policy.secure_secrets_management),
+        ("user authenticated", policy.user_authenticated),
+        ("role permission granted", policy.role_permission_granted),
+        ("approval workflow enabled", policy.approval_workflow_enabled),
+        ("emergency kill switch available", policy.emergency_kill_switch_available),
+        ("broker status healthy", policy.broker_status_healthy),
+        ("compliance checks passed", policy.compliance_checks_passed),
+        ("duplicate-order check passed", policy.duplicate_order_check_passed),
+    ]
+
+    lines = [
+        "ATLAS production readiness:",
+        f"- Active policy profile: {active_risk_policy_profile()}",
+    ]
+    for label, passed in checks:
+        marker = "PASS" if passed else "BLOCKED"
+        lines.append(f"- {marker}: {label}")
+
+    if all(passed for _, passed in checks):
+        lines.append("Result: production controls are ready for supervised order-intent routing.")
+    else:
+        lines.append("Result: production broker execution must remain blocked.")
+
+    return "\n".join(lines)
 
 
 def serialize_order_intent(intent):
@@ -742,10 +859,12 @@ def policy_profile_detail(profile_name=None):
 def live_policy_summary():
     profile_name = active_risk_policy_profile()
     policy = default_live_risk_policy()
+    controls = system_controls()
 
     return (
         "ATLAS live trading policy state:\n"
         f"- Active profile: {profile_name}\n"
+        f"- Kill switch active: {controls.get('kill_switch_active', False)}\n"
         f"- Live trading enabled: {policy.live_trading_enabled}\n"
         f"- Live Production Mode: {policy.live_production_mode}\n"
         f"- Permission level: L{int(policy.permission_level)} {policy.permission_level.name}\n"
@@ -1059,6 +1178,10 @@ Paper trading:
 
 Real trading order intents:
   live policy
+  readiness
+  controls
+  kill switch on REASON
+  kill switch clear CLEAR_KILL_SWITCH
   policy profiles
   policy show
   policy show paper
@@ -1131,6 +1254,24 @@ def main():
             elif lower == "live policy":
                 print("\nATLAS:\n")
                 print(live_policy_summary())
+
+            elif lower == "readiness":
+                print("\nATLAS:\n")
+                print(production_readiness_report())
+
+            elif lower == "controls":
+                print("\nATLAS:\n")
+                print(system_control_summary())
+
+            elif lower.startswith("kill switch on "):
+                reason = command[15:].strip()
+                print("\nATLAS:\n")
+                print(activate_kill_switch(reason))
+
+            elif lower.startswith("kill switch clear "):
+                confirmation = command[18:].strip()
+                print("\nATLAS:\n")
+                print(clear_kill_switch(confirmation))
 
             elif lower == "policy profiles":
                 print("\nATLAS:\n")

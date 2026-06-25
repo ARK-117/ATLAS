@@ -27,9 +27,40 @@ class AppTradingCliTest(unittest.TestCase):
         summary = app.live_policy_summary()
 
         self.assertIn("Active profile: development", summary)
+        self.assertIn("Kill switch active: False", summary)
         self.assertIn("Live trading enabled: False", summary)
         self.assertIn("Live Production Mode: False", summary)
         self.assertIn("Permission level: L0 RESEARCH", summary)
+
+    def test_system_controls_default_to_inactive_kill_switch(self) -> None:
+        summary = app.system_control_summary()
+
+        self.assertIn("Kill switch: inactive", summary)
+        self.assertIn("Reason: none", summary)
+
+    def test_kill_switch_can_be_activated_and_cleared_with_confirmation(self) -> None:
+        activation = app.activate_kill_switch("unit test stop")
+
+        self.assertIn("Kill switch activated", activation)
+        self.assertTrue(app.system_controls()["kill_switch_active"])
+        self.assertIn("unit test stop", app.system_control_summary())
+        self.assertTrue(Path(app.ORDER_INTENT_AUDIT_FILE).exists())
+
+        blocked_clear = app.clear_kill_switch("YES")
+        self.assertIn("Kill switch clear blocked", blocked_clear)
+        self.assertTrue(app.system_controls()["kill_switch_active"])
+
+        cleared = app.clear_kill_switch(app.KILL_SWITCH_CLEAR_CONFIRMATION)
+        self.assertIn("Kill switch cleared", cleared)
+        self.assertFalse(app.system_controls()["kill_switch_active"])
+
+    def test_readiness_report_blocks_when_kill_switch_active(self) -> None:
+        app.activate_kill_switch("unit test stop")
+
+        report = app.production_readiness_report()
+
+        self.assertIn("BLOCKED: kill switch inactive", report)
+        self.assertIn("Result: production broker execution must remain blocked.", report)
 
     def test_policy_profile_list_marks_active_profile(self) -> None:
         result = app.policy_profile_list()
@@ -175,6 +206,41 @@ class AppTradingCliTest(unittest.TestCase):
 
         self.assertIn("ATLAS order intent recheck", result)
         self.assertIn("No live broker order was placed.", result)
+
+    def test_kill_switch_blocks_order_intent_recheck(self) -> None:
+        intent = OrderIntent(
+            symbol="AAPL",
+            side=OrderSide.BUY,
+            quantity=1,
+            expected_max_loss=10.0,
+            stop_loss_price=90.0,
+            reason="unit test",
+            data_sources_used=("unit-test",),
+            created_by="test",
+        )
+        market = MarketSnapshot(
+            symbol="AAPL",
+            price=100.0,
+            timestamp=datetime.now(timezone.utc),
+            sector="technology",
+            average_daily_dollar_volume=100_000_000.0,
+            source="unit-test",
+        )
+        app.store_order_intent_record(
+            intent,
+            market,
+            BrokerExecutionResult(
+                broker_order_id="",
+                accepted=False,
+                status="blocked",
+                message="human approval is required",
+            ),
+        )
+        app.activate_kill_switch("unit test stop")
+
+        result = app.recheck_order_intent(intent.id)
+
+        self.assertIn("kill switch is active", result)
 
 
 if __name__ == "__main__":
