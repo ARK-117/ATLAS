@@ -2,42 +2,49 @@
 
 ATLAS stands for Automated Trading, Learning, and Analysis System. The current `app.py` is a useful prototype: it performs web research, calls a local Ollama model, tracks a watchlist, performs simple stock lookup, and simulates paper buys with basic exposure, stop-loss, and take-profit checks.
 
-This blueprint describes the production architecture that should grow around that prototype. The core rule is simple: ATLAS may miss opportunities, but it must never ignore safety, legality, risk limits, data integrity, auditability, or human control.
+This blueprint describes the production architecture that should grow around that prototype. The target system is a real-money research and trading platform, not a paper-trading toy. The core rule is simple: ATLAS may miss opportunities, but it must never ignore safety, legality, risk limits, data integrity, auditability, or human control.
 
 This document is technical planning and risk-control guidance. It is not legal, tax, accounting, brokerage, or personalized financial advice. Before live trading, consult qualified legal, compliance, tax, and brokerage professionals.
 
 ## 1. Product Boundary
 
-ATLAS should be built as a modular AI operating system where trading is one permissioned module.
+ATLAS should be built as a modular AI operating system where real trading is one permissioned module.
 
 Default capabilities:
 
 - Research public market data.
 - Summarize filings, earnings, news, macro data, sector trends, and technical conditions.
-- Generate clearly labeled research opinions and simulated trade ideas.
-- Backtest and paper trade strategies.
-- Monitor portfolio risk in simulation.
+- Generate clearly labeled research opinions and real trade candidates.
+- Backtest, stress test, and paper-trade strategies before production approval.
+- Monitor portfolio risk in simulation and live broker-connected environments.
 - Produce explainable reports with uncertainty and source quality.
 
-Disabled by default:
+Production trading capabilities:
 
-- Live orders.
+- Real broker account connection.
+- Real order-intent creation.
+- Real order submission after deterministic risk checks and human approval.
+- Real position, cash, exposure, and P/L reconciliation.
+- Real-time shutdown controls and broker-state monitoring.
+
+Disabled unless explicitly enabled through a protected production process:
+
 - Withdrawals or cash movement.
 - Broker setting changes.
 - Margin, leverage, short selling, options, futures, crypto, or complex orders.
-- Autonomous execution without human approval.
+- Autonomous execution without human approval and signed production approval.
 - Any use of insider, stolen, hacked, leaked, or non-public material.
 
 ## 2. System Principles
 
-- Research, opinion, simulation, and live action must be separate object types in the database and UI.
+- Research, opinion, simulation, order intent, and live action must be separate object types in the database and UI.
 - LLMs can propose and explain; deterministic services must validate, size, block, route, and audit.
 - Trading tools must be isolated from research tools by separate credentials and permissions.
 - Broker credentials must never be exposed to prompts, chat logs, reports, or front-end clients.
 - Every sensitive decision must produce an immutable audit trail.
 - Missing data, stale data, conflicting data, or model uncertainty must reduce risk or block action.
 - Fail-closed behavior is mandatory. When unsure, pause.
-- Live trading requires an explicit production configuration, hardened deployment, risk approval, and a human approval workflow.
+- Live trading is the production target, but it requires an explicit production configuration, hardened deployment, risk approval, and a human approval workflow.
 
 ## 3. High-Level Architecture
 
@@ -762,7 +769,7 @@ Phase 1: Safe local research MVP
 - Add FRED connector for macro data.
 - Add report templates with citations and uncertainty labels.
 - Add tests for risk checks and data parsing.
-- Expected output: reliable research assistant and paper portfolio tracker.
+- Expected output: reliable research assistant, real-trading-ready data model, and paper portfolio tracker for rehearsal.
 - Build first: configuration, logging, data models, risk policy object, and test harness.
 
 Phase 2: Data foundation
@@ -791,7 +798,7 @@ Phase 4: Paper trading production rehearsal
 - Add order state machine.
 - Add approval workflow even for paper mode.
 - Add reconciliation, alerts, and risk blocks.
-- Expected output: paper trading behaves like a safe rehearsal for live trading.
+- Expected output: paper trading behaves like a safe rehearsal for real broker execution.
 - Main risk: assuming paper results equal live results.
 
 Phase 5: Portfolio and risk cockpit
@@ -803,14 +810,14 @@ Phase 5: Portfolio and risk cockpit
 - Expected output: human operator can understand and control the system.
 - Main risk: risk engine hidden behind opaque agent text.
 
-Phase 6: Controlled live pilot
+Phase 6: Controlled real-money trading pilot
 
 - Requires legal/compliance review, broker review, and production security review.
 - Enable live equities only, no margin, no shorts, no options, no futures, no crypto.
 - Use tiny capital.
 - Require human approval for every order.
 - Add daily sign-off and post-trade review.
-- Expected output: live plumbing validated with minimal financial blast radius.
+- Expected output: real broker execution validated with minimal financial blast radius.
 - Main risk: operational failure, not model failure.
 
 Phase 7: Advanced institutional buildout
@@ -841,14 +848,13 @@ Build in this order:
 
 1. Safety and policy foundation: risk policy schema, permission model, action labels, audit log.
 2. Repo hygiene: requirements, tests, README, module structure.
-3. Data models: instruments, market data, filings, reports, paper portfolio, risk events.
+3. Data models: instruments, market data, filings, reports, broker accounts, positions, order intents, paper portfolio, risk events.
 4. Source-grounded research: SEC EDGAR, FRED, market data abstraction, citations.
 5. Deterministic risk engine: sizing, exposure, drawdown, liquidity, volatility, event restrictions.
 6. Backtesting skeleton: event loop, portfolio accounting, costs, metrics.
 7. Paper trading engine: order state machine, simulated fills, stops, reconciliation.
-8. Dashboard: research reports, paper portfolio, risk limits, audit events.
+8. Dashboard: research reports, live/paper portfolio views, risk limits, approval queue, audit events.
 9. Broker paper adapter: only after internal paper engine is stable.
-10. Live adapter: only after explicit production approval.
+10. Live broker adapter: only after explicit production approval, with real order submission gated behind risk checks and human approval.
 
-Do not build broker live trading first. The correct first product is a safe research and simulation system with strong data provenance, risk controls, and audit logs.
-
+Do not connect real broker execution first. The correct first engineering milestone is a safe research, risk, audit, and simulation foundation that can graduate into controlled real-money trading without rewriting the system.
