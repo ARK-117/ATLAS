@@ -33,7 +33,11 @@ from atlas.trading import (
     Position,
     RiskEngine,
     RiskPolicy,
+    RiskPolicyConfigError,
     TradingGateway,
+    list_risk_policy_profiles,
+    load_risk_policy_profile,
+    risk_policy_to_dict,
 )
 
 
@@ -44,11 +48,13 @@ REPORTS_FOLDER = "reports"
 AUDIT_FOLDER = "audit"
 ORDER_INTENT_AUDIT_FILE = os.path.join(AUDIT_FOLDER, "order_intents.jsonl")
 DATA_FILE = "atlas_data.json"
+DEFAULT_RISK_POLICY_PROFILE = "development"
 
 DEFAULT_DATA = {
     "paper_cash": 10000.0,
     "positions": {},
     "watchlist": [],
+    "active_risk_policy_profile": DEFAULT_RISK_POLICY_PROFILE,
     "risk": {
         "max_trade_amount": 500.0,
         "max_total_exposure": 2000.0,
@@ -64,7 +70,18 @@ def load_data():
         return DEFAULT_DATA.copy()
 
     with open(DATA_FILE, "r", encoding="utf-8") as file:
-        return json.load(file)
+        data = json.load(file)
+
+    changed = False
+    for key, value in DEFAULT_DATA.items():
+        if key not in data:
+            data[key] = value
+            changed = True
+
+    if changed:
+        save_data(data)
+
+    return data
 
 
 def save_data(data):
@@ -350,14 +367,79 @@ def development_portfolio_state(data):
 
 
 def default_live_risk_policy():
-    return RiskPolicy()
+    profile_name = active_risk_policy_profile()
+
+    try:
+        return load_risk_policy_profile(profile_name)
+    except RiskPolicyConfigError:
+        return RiskPolicy()
+
+
+def active_risk_policy_profile():
+    data = load_data()
+    return data.get("active_risk_policy_profile", DEFAULT_RISK_POLICY_PROFILE)
+
+
+def set_active_risk_policy_profile(profile_name):
+    profile_name = profile_name.strip()
+    profiles = list_risk_policy_profiles()
+
+    if profile_name not in profiles:
+        return (
+            f"Unknown risk policy profile: {profile_name}\n"
+            f"Available profiles: {', '.join(profiles) if profiles else 'none'}"
+        )
+
+    try:
+        load_risk_policy_profile(profile_name)
+    except RiskPolicyConfigError as error:
+        return f"Risk policy profile is invalid: {error}"
+
+    data = load_data()
+    data["active_risk_policy_profile"] = profile_name
+    save_data(data)
+
+    return f"Active risk policy profile set to: {profile_name}"
+
+
+def policy_profile_list():
+    profiles = list_risk_policy_profiles()
+    active_profile = active_risk_policy_profile()
+
+    if not profiles:
+        return "No risk policy profiles found."
+
+    lines = ["ATLAS risk policy profiles:"]
+    for profile in profiles:
+        marker = "*" if profile == active_profile else "-"
+        lines.append(f"{marker} {profile}")
+
+    return "\n".join(lines)
+
+
+def policy_profile_detail(profile_name=None):
+    profile_name = profile_name or active_risk_policy_profile()
+
+    try:
+        policy = load_risk_policy_profile(profile_name)
+    except RiskPolicyConfigError as error:
+        return f"Could not load risk policy profile: {error}"
+
+    policy_dict = risk_policy_to_dict(policy)
+    lines = [f"ATLAS risk policy profile: {profile_name}"]
+    for key in sorted(policy_dict):
+        lines.append(f"- {key}: {policy_dict[key]}")
+
+    return "\n".join(lines)
 
 
 def live_policy_summary():
+    profile_name = active_risk_policy_profile()
     policy = default_live_risk_policy()
 
     return (
         "ATLAS live trading policy state:\n"
+        f"- Active profile: {profile_name}\n"
         f"- Live trading enabled: {policy.live_trading_enabled}\n"
         f"- Live Production Mode: {policy.live_production_mode}\n"
         f"- Permission level: L{int(policy.permission_level)} {policy.permission_level.name}\n"
@@ -369,6 +451,7 @@ def live_policy_summary():
         f"- Broker status healthy: {policy.broker_status_healthy}\n"
         f"- Compliance checks passed: {policy.compliance_checks_passed}\n\n"
         "Default development mode blocks real broker execution. "
+        "Use policy profiles to inspect or switch local risk profiles. "
         "See docs/LIVE_TRADING_POLICY.md before enabling production controls."
     )
 
@@ -450,6 +533,7 @@ def create_order_intent(side_text, ticker, quantity_text, stop_loss_text, max_lo
         f"Status: {result.status}",
         f"Accepted by execution gateway: {result.accepted}",
         f"Audit log: {ORDER_INTENT_AUDIT_FILE}",
+        f"Risk policy profile: {active_risk_policy_profile()}",
     ]
 
     if reason_lines:
@@ -668,6 +752,10 @@ Paper trading:
 
 Real trading order intents:
   live policy
+  policy profiles
+  policy show
+  policy show paper
+  policy use paper
   intent buy NVDA 1 450 25 momentum thesis with stop defined
   intent sell NVDA 1 500 25 risk reduction thesis
 
@@ -732,6 +820,24 @@ def main():
             elif lower == "live policy":
                 print("\nATLAS:\n")
                 print(live_policy_summary())
+
+            elif lower == "policy profiles":
+                print("\nATLAS:\n")
+                print(policy_profile_list())
+
+            elif lower == "policy show":
+                print("\nATLAS:\n")
+                print(policy_profile_detail())
+
+            elif lower.startswith("policy show "):
+                profile_name = command[12:].strip()
+                print("\nATLAS:\n")
+                print(policy_profile_detail(profile_name))
+
+            elif lower.startswith("policy use "):
+                profile_name = command[11:].strip()
+                print("\nATLAS:\n")
+                print(set_active_risk_policy_profile(profile_name))
 
             elif lower.startswith("intent "):
                 parts = command.split(maxsplit=6)

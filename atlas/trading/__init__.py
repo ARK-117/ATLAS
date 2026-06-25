@@ -7,6 +7,12 @@ from .brokers import (
     LiveBrokerNotConfiguredAdapter,
     SimulatedBrokerAdapter,
 )
+from .config import (
+    RiskPolicyConfigError,
+    list_risk_policy_profiles,
+    load_risk_policy_profile,
+    risk_policy_to_dict,
+)
 from .gateway import TradingGateway
 from .models import (
     Approval,
@@ -42,9 +48,13 @@ __all__ = [
     "RiskCheckResult",
     "RiskDecision",
     "RiskEngine",
+    "RiskPolicyConfigError",
     "RiskPolicy",
     "SimulatedBrokerAdapter",
     "TimeInForce",
     "TradingGateway",
     "TradingPermissionLevel",
+    "list_risk_policy_profiles",
+    "load_risk_policy_profile",
+    "risk_policy_to_dict",
 ]

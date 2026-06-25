@@ -7,3 +7,4 @@ venv/
 atlas_data.json
 reports/
 audit/
+configs/risk_profiles/*.local.json

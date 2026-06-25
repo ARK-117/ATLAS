@@ -40,10 +40,15 @@ Then in the ATLAS prompt:
 
 ```text
 live policy
+policy profiles
+policy show
+policy use paper
 intent buy NVDA 1 450 25 momentum thesis with stop defined
 ```
 
 This creates and audits an order intent. It does not place a live broker order unless Live Production Mode, broker credentials, approval workflow, risk checks, and the execution adapter are configured.
+
+Committed policy profiles live in `configs/risk_profiles/`. Runtime state such as the active local profile is stored in `atlas_data.json`, which is intentionally ignored by Git. Local production-style overrides should use `*.local.json`; those files are also ignored so live settings are not accidentally committed.
 
 ## Safety Position
 
