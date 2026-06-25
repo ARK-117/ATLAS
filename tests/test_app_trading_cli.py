@@ -2,19 +2,25 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 import app
+from atlas.trading import BrokerExecutionResult, MarketSnapshot, OrderIntent, OrderSide
 
 
 class AppTradingCliTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
         self.original_data_file = app.DATA_FILE
-        app.DATA_FILE = str(Path(self.temp_dir.name) / "atlas_data.json")
+        self.original_audit_file = app.ORDER_INTENT_AUDIT_FILE
+        app.DATA_FILE = str(self.temp_path / "atlas_data.json")
+        app.ORDER_INTENT_AUDIT_FILE = str(self.temp_path / "order_intents.jsonl")
 
     def tearDown(self) -> None:
         app.DATA_FILE = self.original_data_file
+        app.ORDER_INTENT_AUDIT_FILE = self.original_audit_file
         self.temp_dir.cleanup()
 
     def test_live_policy_summary_shows_default_blocked_state(self) -> None:
@@ -61,6 +67,114 @@ class AppTradingCliTest(unittest.TestCase):
         )
 
         self.assertEqual("Reason is required for every real-trading order intent.", result)
+
+    def test_create_order_intent_persists_record_after_risk_check(self) -> None:
+        original_get_market_snapshot = app.get_market_snapshot
+        app.get_market_snapshot = lambda ticker: MarketSnapshot(
+            symbol=ticker,
+            price=100.0,
+            timestamp=datetime.now(timezone.utc),
+            sector="technology",
+            average_daily_dollar_volume=100_000_000.0,
+            source="unit-test",
+        )
+
+        try:
+            result = app.create_order_intent(
+                side_text="buy",
+                ticker="AAPL",
+                quantity_text="1",
+                stop_loss_text="90",
+                max_loss_text="10",
+                reason="unit test",
+            )
+        finally:
+            app.get_market_snapshot = original_get_market_snapshot
+
+        self.assertIn("ATLAS real-trading order intent risk check", result)
+        self.assertIn("No live broker order was placed.", result)
+        self.assertIn("AAPL", app.list_order_intents())
+
+    def test_order_intent_can_be_stored_listed_shown_and_approved(self) -> None:
+        intent = OrderIntent(
+            symbol="AAPL",
+            side=OrderSide.BUY,
+            quantity=1,
+            expected_max_loss=10.0,
+            stop_loss_price=90.0,
+            reason="unit test",
+            data_sources_used=("unit-test",),
+            created_by="test",
+        )
+        market = MarketSnapshot(
+            symbol="AAPL",
+            price=100.0,
+            timestamp=datetime.now(timezone.utc),
+            sector="technology",
+            average_daily_dollar_volume=100_000_000.0,
+            source="unit-test",
+        )
+        result = BrokerExecutionResult(
+            broker_order_id="",
+            accepted=False,
+            status="blocked",
+            message="human approval is required",
+        )
+
+        app.store_order_intent_record(intent, market, result)
+
+        self.assertIn(intent.id, app.list_order_intents())
+        shown = app.show_order_intent(intent.id)
+        self.assertIn("Approval: none", shown)
+        self.assertIn("human approval is required", shown)
+
+        blocked = app.approve_order_intent(intent.id, "YES")
+        self.assertIn("Approval blocked", blocked)
+
+        approved = app.approve_order_intent(intent.id, app.APPROVAL_CONFIRMATION)
+        self.assertIn("Approval recorded", approved)
+        self.assertIn("Approval: recorded by local-cli", app.show_order_intent(intent.id))
+        self.assertTrue(Path(app.ORDER_INTENT_AUDIT_FILE).exists())
+
+    def test_recheck_order_intent_uses_stored_market_when_fresh_lookup_unavailable(self) -> None:
+        intent = OrderIntent(
+            symbol="AAPL",
+            side=OrderSide.BUY,
+            quantity=1,
+            expected_max_loss=10.0,
+            stop_loss_price=90.0,
+            reason="unit test",
+            data_sources_used=("unit-test",),
+            created_by="test",
+        )
+        market = MarketSnapshot(
+            symbol="AAPL",
+            price=100.0,
+            timestamp=datetime.now(timezone.utc),
+            sector="technology",
+            average_daily_dollar_volume=100_000_000.0,
+            source="unit-test",
+        )
+        app.store_order_intent_record(
+            intent,
+            market,
+            BrokerExecutionResult(
+                broker_order_id="",
+                accepted=False,
+                status="blocked",
+                message="human approval is required",
+            ),
+        )
+        original_get_market_snapshot = app.get_market_snapshot
+        app.get_market_snapshot = lambda ticker: None
+
+        try:
+            result = app.recheck_order_intent(intent.id)
+        finally:
+            app.get_market_snapshot = original_get_market_snapshot
+
+        self.assertIn("ATLAS order intent recheck", result)
+        self.assertIn("No live broker order was placed.", result)
 
 
 if __name__ == "__main__":

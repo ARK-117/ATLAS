@@ -44,6 +44,10 @@ policy profiles
 policy show
 policy use paper
 intent buy NVDA 1 450 25 momentum thesis with stop defined
+intents
+intent show INTENT_ID
+approve intent INTENT_ID APPROVE_LIVE_INTENT
+recheck intent INTENT_ID
 ```
 
 This creates and audits an order intent. It does not place a live broker order unless Live Production Mode, broker credentials, approval workflow, risk checks, and the execution adapter are configured.

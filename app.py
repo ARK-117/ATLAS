@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 try:
     import requests
@@ -23,18 +23,21 @@ except ImportError:
     yf = None
 
 from atlas.trading import (
+    Approval,
     AssetClass,
     JsonlAuditLogger,
     LiveBrokerNotConfiguredAdapter,
     MarketSnapshot,
     OrderIntent,
     OrderSide,
+    OrderType,
     PortfolioState,
     Position,
     RiskEngine,
     RiskPolicy,
     RiskPolicyConfigError,
     TradingGateway,
+    TimeInForce,
     list_risk_policy_profiles,
     load_risk_policy_profile,
     risk_policy_to_dict,
@@ -49,11 +52,14 @@ AUDIT_FOLDER = "audit"
 ORDER_INTENT_AUDIT_FILE = os.path.join(AUDIT_FOLDER, "order_intents.jsonl")
 DATA_FILE = "atlas_data.json"
 DEFAULT_RISK_POLICY_PROFILE = "development"
+APPROVAL_CONFIRMATION = "APPROVE_LIVE_INTENT"
 
 DEFAULT_DATA = {
     "paper_cash": 10000.0,
     "positions": {},
     "watchlist": [],
+    "order_intents": {},
+    "approvals": {},
     "active_risk_policy_profile": DEFAULT_RISK_POLICY_PROFILE,
     "risk": {
         "max_trade_amount": 500.0,
@@ -64,10 +70,15 @@ DEFAULT_DATA = {
 }
 
 
+def fresh_default_data():
+    return json.loads(json.dumps(DEFAULT_DATA))
+
+
 def load_data():
     if not os.path.exists(DATA_FILE):
-        save_data(DEFAULT_DATA)
-        return DEFAULT_DATA.copy()
+        data = fresh_default_data()
+        save_data(data)
+        return data
 
     with open(DATA_FILE, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -75,7 +86,7 @@ def load_data():
     changed = False
     for key, value in DEFAULT_DATA.items():
         if key not in data:
-            data[key] = value
+            data[key] = json.loads(json.dumps(value))
             changed = True
 
     if changed:
@@ -85,8 +96,25 @@ def load_data():
 
 
 def save_data(data):
+    data_dir = os.path.dirname(DATA_FILE)
+    if data_dir:
+        os.makedirs(data_dir, exist_ok=True)
+
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def parse_datetime(value):
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def ask_atlas(prompt):
@@ -375,6 +403,284 @@ def default_live_risk_policy():
         return RiskPolicy()
 
 
+def serialize_order_intent(intent):
+    return {
+        "id": intent.id,
+        "symbol": intent.symbol,
+        "side": intent.side.value,
+        "quantity": intent.quantity,
+        "asset_class": intent.asset_class.value,
+        "order_type": intent.order_type.value,
+        "time_in_force": intent.time_in_force.value,
+        "limit_price": intent.limit_price,
+        "stop_price": intent.stop_price,
+        "estimated_fees": intent.estimated_fees,
+        "expected_max_loss": intent.expected_max_loss,
+        "stop_loss_price": intent.stop_loss_price,
+        "invalidation_condition": intent.invalidation_condition,
+        "reason": intent.reason,
+        "data_sources_used": list(intent.data_sources_used),
+        "uses_margin": intent.uses_margin,
+        "leverage_multiplier": intent.leverage_multiplier,
+        "is_autonomous": intent.is_autonomous,
+        "strategy_id": intent.strategy_id,
+        "created_by": intent.created_by,
+        "created_at": intent.created_at.isoformat(),
+    }
+
+
+def deserialize_order_intent(raw):
+    return OrderIntent(
+        id=raw["id"],
+        symbol=raw["symbol"],
+        side=OrderSide(raw["side"]),
+        quantity=float(raw["quantity"]),
+        asset_class=AssetClass(raw.get("asset_class", AssetClass.EQUITY.value)),
+        order_type=OrderType(raw.get("order_type", OrderType.MARKET.value)),
+        time_in_force=TimeInForce(raw.get("time_in_force", TimeInForce.DAY.value)),
+        limit_price=raw.get("limit_price"),
+        stop_price=raw.get("stop_price"),
+        estimated_fees=float(raw.get("estimated_fees", 0.0)),
+        expected_max_loss=raw.get("expected_max_loss"),
+        stop_loss_price=raw.get("stop_loss_price"),
+        invalidation_condition=raw.get("invalidation_condition", ""),
+        reason=raw.get("reason", ""),
+        data_sources_used=tuple(raw.get("data_sources_used", ())),
+        uses_margin=bool(raw.get("uses_margin", False)),
+        leverage_multiplier=float(raw.get("leverage_multiplier", 1.0)),
+        is_autonomous=bool(raw.get("is_autonomous", False)),
+        strategy_id=raw.get("strategy_id", "manual"),
+        created_by=raw.get("created_by", "user"),
+        created_at=parse_datetime(raw["created_at"]),
+    )
+
+
+def serialize_market_snapshot(market):
+    return {
+        "symbol": market.symbol,
+        "price": market.price,
+        "timestamp": market.timestamp.isoformat(),
+        "sector": market.sector,
+        "asset_class": market.asset_class.value,
+        "bid_ask_spread_percent": market.bid_ask_spread_percent,
+        "average_daily_dollar_volume": market.average_daily_dollar_volume,
+        "volatility_percent": market.volatility_percent,
+        "is_halted": market.is_halted,
+        "has_upcoming_earnings": market.has_upcoming_earnings,
+        "has_major_unverified_news": market.has_major_unverified_news,
+        "source": market.source,
+    }
+
+
+def deserialize_market_snapshot(raw):
+    return MarketSnapshot(
+        symbol=raw["symbol"],
+        price=float(raw["price"]),
+        timestamp=parse_datetime(raw["timestamp"]),
+        sector=raw.get("sector", "unknown"),
+        asset_class=AssetClass(raw.get("asset_class", AssetClass.EQUITY.value)),
+        bid_ask_spread_percent=float(raw.get("bid_ask_spread_percent", 0.0)),
+        average_daily_dollar_volume=float(raw.get("average_daily_dollar_volume", 0.0)),
+        volatility_percent=float(raw.get("volatility_percent", 0.0)),
+        is_halted=bool(raw.get("is_halted", False)),
+        has_upcoming_earnings=bool(raw.get("has_upcoming_earnings", False)),
+        has_major_unverified_news=bool(raw.get("has_major_unverified_news", False)),
+        source=raw.get("source", "unknown"),
+    )
+
+
+def serialize_approval(approval):
+    return {
+        "order_intent_id": approval.order_intent_id,
+        "approved_by": approval.approved_by,
+        "approved_at": approval.approved_at.isoformat(),
+        "expires_at": approval.expires_at.isoformat(),
+        "production_acknowledged": approval.production_acknowledged,
+    }
+
+
+def deserialize_approval(raw):
+    return Approval(
+        order_intent_id=raw["order_intent_id"],
+        approved_by=raw["approved_by"],
+        approved_at=parse_datetime(raw["approved_at"]),
+        expires_at=parse_datetime(raw["expires_at"]),
+        production_acknowledged=bool(raw.get("production_acknowledged", False)),
+    )
+
+
+def store_order_intent_record(intent, market, result):
+    data = load_data()
+    data["order_intents"][intent.id] = {
+        "intent": serialize_order_intent(intent),
+        "market_snapshot": serialize_market_snapshot(market),
+        "policy_profile": active_risk_policy_profile(),
+        "last_status": result.status,
+        "last_message": result.message,
+        "broker_accepted": result.accepted,
+        "created_at": intent.created_at.isoformat(),
+        "updated_at": utc_now().isoformat(),
+    }
+    save_data(data)
+
+
+def get_order_intent_record(intent_id):
+    data = load_data()
+    return data["order_intents"].get(intent_id)
+
+
+def list_order_intents():
+    data = load_data()
+    records = list(data["order_intents"].values())
+
+    if not records:
+        return "No order intents recorded."
+
+    records.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+    lines = ["ATLAS order intents:"]
+
+    for record in records[:20]:
+        intent = record["intent"]
+        lines.append(
+            f"- {intent['id']} | {intent['side']} {intent['quantity']:g} "
+            f"{intent['symbol']} | status {record['last_status']} | "
+            f"profile {record['policy_profile']}"
+        )
+
+    return "\n".join(lines)
+
+
+def show_order_intent(intent_id):
+    record = get_order_intent_record(intent_id)
+    if not record:
+        return f"Order intent not found: {intent_id}"
+
+    intent = record["intent"]
+    market = record["market_snapshot"]
+    approval = load_approval(intent_id)
+
+    lines = [
+        f"ATLAS order intent: {intent_id}",
+        f"- Symbol: {intent['symbol']}",
+        f"- Side: {intent['side']}",
+        f"- Quantity: {intent['quantity']:g}",
+        f"- Order type: {intent['order_type']}",
+        f"- Time in force: {intent['time_in_force']}",
+        f"- Expected max loss: {intent['expected_max_loss']}",
+        f"- Stop-loss price: {intent['stop_loss_price']}",
+        f"- Reason: {intent['reason']}",
+        f"- Data sources: {', '.join(intent['data_sources_used'])}",
+        f"- Reference price: {market['price']}",
+        f"- Market timestamp UTC: {market['timestamp']}",
+        f"- Policy profile: {record['policy_profile']}",
+        f"- Last status: {record['last_status']}",
+        f"- Broker accepted: {record['broker_accepted']}",
+        f"- Last message: {record['last_message']}",
+    ]
+
+    if approval:
+        lines.append(f"- Approval: recorded by {approval.approved_by}, expires {approval.expires_at.isoformat()}")
+    else:
+        lines.append("- Approval: none")
+
+    return "\n".join(lines)
+
+
+def load_approval(intent_id):
+    data = load_data()
+    raw = data["approvals"].get(intent_id)
+    if not raw:
+        return None
+    return deserialize_approval(raw)
+
+
+def approve_order_intent(intent_id, confirmation_text, approved_by="local-cli"):
+    record = get_order_intent_record(intent_id)
+    if not record:
+        return f"Order intent not found: {intent_id}"
+
+    if confirmation_text != APPROVAL_CONFIRMATION:
+        return (
+            f"Approval blocked. To approve this local order intent, use:\n"
+            f"approve intent {intent_id} {APPROVAL_CONFIRMATION}"
+        )
+
+    now = utc_now()
+    approval = Approval(
+        order_intent_id=intent_id,
+        approved_by=approved_by,
+        approved_at=now,
+        expires_at=now + timedelta(minutes=5),
+        production_acknowledged=True,
+    )
+
+    data = load_data()
+    data["approvals"][intent_id] = serialize_approval(approval)
+    save_data(data)
+
+    JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE).append(
+        "human_approval_recorded",
+        {
+            "order_intent_id": intent_id,
+            "approved_by": approved_by,
+            "approved_at": approval.approved_at.isoformat(),
+            "expires_at": approval.expires_at.isoformat(),
+            "production_acknowledged": approval.production_acknowledged,
+        },
+    )
+
+    return (
+        f"Approval recorded for order intent {intent_id}.\n"
+        "This approval does not place a live broker order. Use recheck intent ID to rerun risk checks."
+    )
+
+
+def recheck_order_intent(intent_id):
+    record = get_order_intent_record(intent_id)
+    if not record:
+        return f"Order intent not found: {intent_id}"
+
+    intent = deserialize_order_intent(record["intent"])
+    stored_market = deserialize_market_snapshot(record["market_snapshot"])
+    market = get_market_snapshot(intent.symbol) or stored_market
+    approval = load_approval(intent_id)
+
+    gateway = TradingGateway(
+        risk_engine=RiskEngine(),
+        broker=LiveBrokerNotConfiguredAdapter(),
+        audit_logger=JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE),
+    )
+    result = gateway.submit_intent(
+        intent=intent,
+        portfolio=development_portfolio_state(load_data()),
+        market=market,
+        policy=default_live_risk_policy(),
+        approval=approval,
+    )
+
+    store_order_intent_record(intent, market, result)
+
+    reason_lines = []
+    if result.message:
+        reason_lines = [f"- {item.strip()}" for item in result.message.split(";") if item.strip()]
+
+    lines = [
+        f"ATLAS order intent recheck: {intent_id}",
+        f"Status: {result.status}",
+        f"Accepted by execution gateway: {result.accepted}",
+        f"Risk policy profile: {active_risk_policy_profile()}",
+        f"Approval present: {approval is not None}",
+        f"Audit log: {ORDER_INTENT_AUDIT_FILE}",
+    ]
+
+    if reason_lines:
+        lines.append("Blocking reasons:")
+        lines.extend(reason_lines)
+
+    lines.append("No live broker order was placed.")
+    return "\n".join(lines)
+
+
 def active_risk_policy_profile():
     data = load_data()
     return data.get("active_risk_policy_profile", DEFAULT_RISK_POLICY_PROFILE)
@@ -513,6 +819,7 @@ def create_order_intent(side_text, ticker, quantity_text, stop_loss_text, max_lo
         market=market,
         policy=default_live_risk_policy(),
     )
+    store_order_intent_record(intent, market, result)
 
     reason_lines = []
     if result.message:
@@ -758,6 +1065,10 @@ Real trading order intents:
   policy use paper
   intent buy NVDA 1 450 25 momentum thesis with stop defined
   intent sell NVDA 1 500 25 risk reduction thesis
+  intents
+  intent show INTENT_ID
+  approve intent INTENT_ID APPROVE_LIVE_INTENT
+  recheck intent INTENT_ID
 
 Settings:
   settings
@@ -839,6 +1150,15 @@ def main():
                 print("\nATLAS:\n")
                 print(set_active_risk_policy_profile(profile_name))
 
+            elif lower == "intents":
+                print("\nATLAS:\n")
+                print(list_order_intents())
+
+            elif lower.startswith("intent show "):
+                intent_id = command[12:].strip()
+                print("\nATLAS:\n")
+                print(show_order_intent(intent_id))
+
             elif lower.startswith("intent "):
                 parts = command.split(maxsplit=6)
 
@@ -850,6 +1170,22 @@ def main():
 
                 print("\nATLAS:\n")
                 print(create_order_intent(side, ticker, quantity, stop_loss, expected_max_loss, reason))
+
+            elif lower.startswith("approve intent "):
+                parts = command.split(maxsplit=3)
+
+                if len(parts) != 4:
+                    print(f"Use: approve intent INTENT_ID {APPROVAL_CONFIRMATION}")
+                    continue
+
+                _, _, intent_id, confirmation = parts
+                print("\nATLAS:\n")
+                print(approve_order_intent(intent_id, confirmation))
+
+            elif lower.startswith("recheck intent "):
+                intent_id = command[15:].strip()
+                print("\nATLAS:\n")
+                print(recheck_order_intent(intent_id))
 
             elif lower == "portfolio":
                 print("\nATLAS:\n")
