@@ -14,6 +14,12 @@ from .config import (
     risk_policy_to_dict,
 )
 from .gateway import TradingGateway
+from .governance import (
+    ControlDomain,
+    GovernanceCheck,
+    GovernanceReport,
+    evaluate_governance_controls,
+)
 from .models import (
     Approval,
     AssetClass,
@@ -37,6 +43,9 @@ __all__ = [
     "AuditLogError",
     "BrokerAdapter",
     "BrokerExecutionResult",
+    "ControlDomain",
+    "GovernanceCheck",
+    "GovernanceReport",
     "JsonlAuditLogger",
     "LiveBrokerNotConfiguredAdapter",
     "MarketSnapshot",
@@ -54,6 +63,7 @@ __all__ = [
     "TimeInForce",
     "TradingGateway",
     "TradingPermissionLevel",
+    "evaluate_governance_controls",
     "list_risk_policy_profiles",
     "load_risk_policy_profile",
     "risk_policy_to_dict",

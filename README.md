@@ -76,3 +76,4 @@ The system must never expose broker credentials to prompts, reports, logs, or cl
 Read the live trading policy before implementing broker execution:
 
 - `docs/LIVE_TRADING_POLICY.md`
+- `docs/FINAL_TARGET_ANALYSIS.md`

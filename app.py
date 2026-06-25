@@ -38,6 +38,7 @@ from atlas.trading import (
     RiskPolicyConfigError,
     TradingGateway,
     TimeInForce,
+    evaluate_governance_controls,
     list_risk_policy_profiles,
     load_risk_policy_profile,
     risk_policy_to_dict,
@@ -488,31 +489,29 @@ def clear_kill_switch(confirmation_text, updated_by="local-cli"):
 def production_readiness_report():
     policy = default_live_risk_policy()
     controls = system_controls()
-    checks = [
-        ("kill switch inactive", not controls.get("kill_switch_active", False)),
-        ("live trading enabled", policy.live_trading_enabled),
-        ("Live Production Mode active", policy.live_production_mode),
-        ("broker connection configured", policy.broker_connection_configured),
-        ("separate paper/live keys confirmed", policy.separate_paper_and_live_keys),
-        ("secure secrets management confirmed", policy.secure_secrets_management),
-        ("user authenticated", policy.user_authenticated),
-        ("role permission granted", policy.role_permission_granted),
-        ("approval workflow enabled", policy.approval_workflow_enabled),
-        ("emergency kill switch available", policy.emergency_kill_switch_available),
-        ("broker status healthy", policy.broker_status_healthy),
-        ("compliance checks passed", policy.compliance_checks_passed),
-        ("duplicate-order check passed", policy.duplicate_order_check_passed),
-    ]
+    report = evaluate_governance_controls(
+        policy,
+        kill_switch_active=bool(controls.get("kill_switch_active", False)),
+        audit_log_configured=True,
+        order_reconciliation_configured=False,
+        market_data_recovery_configured=False,
+    )
 
     lines = [
         "ATLAS production readiness:",
         f"- Active policy profile: {active_risk_policy_profile()}",
+        f"- Blocked required checks: {report.blocked_count}",
+        "Domain summary:",
     ]
-    for label, passed in checks:
-        marker = "PASS" if passed else "BLOCKED"
-        lines.append(f"- {marker}: {label}")
+    for domain, passed, total in report.domain_summary():
+        lines.append(f"- {domain.value}: {passed}/{total} passing")
 
-    if all(passed for _, passed in checks):
+    lines.append("Checks:")
+    for check in report.checks:
+        marker = "PASS" if check.passed else "BLOCKED"
+        lines.append(f"- {marker}: {check.name} [{check.domain.value}] - {check.detail}")
+
+    if report.ready:
         lines.append("Result: production controls are ready for supervised order-intent routing.")
     else:
         lines.append("Result: production broker execution must remain blocked.")
