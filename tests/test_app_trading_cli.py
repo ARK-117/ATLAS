@@ -15,12 +15,15 @@ class AppTradingCliTest(unittest.TestCase):
         self.temp_path = Path(self.temp_dir.name)
         self.original_data_file = app.DATA_FILE
         self.original_audit_file = app.ORDER_INTENT_AUDIT_FILE
+        self.original_event_file = app.CANONICAL_EVENT_FILE
         app.DATA_FILE = str(self.temp_path / "atlas_data.json")
         app.ORDER_INTENT_AUDIT_FILE = str(self.temp_path / "order_intents.jsonl")
+        app.CANONICAL_EVENT_FILE = str(self.temp_path / "canonical_events.jsonl")
 
     def tearDown(self) -> None:
         app.DATA_FILE = self.original_data_file
         app.ORDER_INTENT_AUDIT_FILE = self.original_audit_file
+        app.CANONICAL_EVENT_FILE = self.original_event_file
         self.temp_dir.cleanup()
 
     def test_live_policy_summary_shows_default_blocked_state(self) -> None:
@@ -45,6 +48,7 @@ class AppTradingCliTest(unittest.TestCase):
         self.assertTrue(app.system_controls()["kill_switch_active"])
         self.assertIn("unit test stop", app.system_control_summary())
         self.assertTrue(Path(app.ORDER_INTENT_AUDIT_FILE).exists())
+        self.assertTrue(Path(app.CANONICAL_EVENT_FILE).exists())
 
         blocked_clear = app.clear_kill_switch("YES")
         self.assertIn("Kill switch clear blocked", blocked_clear)
@@ -53,6 +57,7 @@ class AppTradingCliTest(unittest.TestCase):
         cleared = app.clear_kill_switch(app.KILL_SWITCH_CLEAR_CONFIRMATION)
         self.assertIn("Kill switch cleared", cleared)
         self.assertFalse(app.system_controls()["kill_switch_active"])
+        self.assertIn("kill_switch_cleared", app.event_summary())
 
     def test_readiness_report_blocks_when_kill_switch_active(self) -> None:
         app.activate_kill_switch("unit test stop")
@@ -166,6 +171,9 @@ class AppTradingCliTest(unittest.TestCase):
         self.assertIn("Approval recorded", approved)
         self.assertIn("Approval: recorded by local-cli", app.show_order_intent(intent.id))
         self.assertTrue(Path(app.ORDER_INTENT_AUDIT_FILE).exists())
+        events = app.event_summary()
+        self.assertIn("order_intent_recorded", events)
+        self.assertIn("human_approval_recorded", events)
 
     def test_recheck_order_intent_uses_stored_market_when_fresh_lookup_unavailable(self) -> None:
         intent = OrderIntent(

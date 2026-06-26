@@ -6,6 +6,7 @@ ATLAS is being built into a professional AI research and real-trading system. Th
 - Deterministic pre-trade risk checks.
 - Human approval objects.
 - Append-only JSONL audit logging.
+- Canonical append-only event spine for execution, risk, and governance events.
 - Broker adapter boundary.
 - Internal simulated broker for testing execution flow.
 - Live broker execution intentionally unconfigured until credentials, reconciliation, production approval, and compliance controls are built.
@@ -52,11 +53,14 @@ intents
 intent show INTENT_ID
 approve intent INTENT_ID APPROVE_LIVE_INTENT
 recheck intent INTENT_ID
+events
 ```
 
 This creates and audits an order intent. It does not place a live broker order unless Live Production Mode, broker credentials, approval workflow, risk checks, and the execution adapter are configured.
 
 Committed policy profiles live in `configs/risk_profiles/`. Runtime state such as the active local profile is stored in `atlas_data.json`, which is intentionally ignored by Git. Local production-style overrides should use `*.local.json`; those files are also ignored so live settings are not accidentally committed.
+
+Canonical runtime events are written to `events/canonical_events.jsonl`, which is intentionally ignored by Git. Use the `events` command inside the app to inspect the latest local execution, risk, and governance events.
 
 ## Safety Position
 

@@ -22,6 +22,7 @@ try:
 except ImportError:
     yf = None
 
+from atlas.events import CanonicalEvent, EventFamily, JsonlEventStore
 from atlas.trading import (
     Approval,
     AssetClass,
@@ -50,7 +51,9 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 
 REPORTS_FOLDER = "reports"
 AUDIT_FOLDER = "audit"
+EVENTS_FOLDER = "events"
 ORDER_INTENT_AUDIT_FILE = os.path.join(AUDIT_FOLDER, "order_intents.jsonl")
+CANONICAL_EVENT_FILE = os.path.join(EVENTS_FOLDER, "canonical_events.jsonl")
 DATA_FILE = "atlas_data.json"
 DEFAULT_RISK_POLICY_PROFILE = "development"
 APPROVAL_CONFIRMATION = "APPROVE_LIVE_INTENT"
@@ -123,6 +126,56 @@ def parse_datetime(value):
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def canonical_event_store():
+    return JsonlEventStore(CANONICAL_EVENT_FILE)
+
+
+def record_canonical_event(
+    family,
+    event_type,
+    subject="",
+    payload=None,
+    source="atlas-cli",
+    source_event_id="",
+    lineage=None,
+):
+    event = CanonicalEvent(
+        family=family,
+        event_type=event_type,
+        source=source,
+        subject=subject,
+        payload=payload or {},
+        source_event_id=source_event_id,
+        lineage=lineage or {},
+    )
+    return canonical_event_store().append(event)
+
+
+def event_summary(limit=10):
+    store = canonical_event_store()
+    count = store.count()
+    events = store.latest(limit)
+    lines = [
+        "ATLAS canonical event store:",
+        f"- File: {CANONICAL_EVENT_FILE}",
+        f"- Events: {count}",
+    ]
+
+    if not events:
+        lines.append("- Latest: none")
+        return "\n".join(lines)
+
+    lines.append("Latest events:")
+    for event in events:
+        subject = f" | {event.subject}" if event.subject else ""
+        lines.append(
+            f"- {event.ingestion_time.isoformat()} | "
+            f"{event.family.value} | {event.event_type}{subject}"
+        )
+
+    return "\n".join(lines)
 
 
 def ask_atlas(prompt):
@@ -453,6 +506,18 @@ def activate_kill_switch(reason, updated_by="local-cli"):
         },
     )
 
+    record_canonical_event(
+        EventFamily.GOVERNANCE,
+        "kill_switch_activated",
+        subject="system_controls.kill_switch",
+        payload={
+            "reason": reason,
+            "updated_by": updated_by,
+            "updated_at": data["system_controls"]["kill_switch_updated_at"],
+        },
+        lineage={"data_file": DATA_FILE, "audit_file": ORDER_INTENT_AUDIT_FILE},
+    )
+
     return (
         "Kill switch activated. New order-intent rechecks and broker submission attempts "
         "will be blocked until it is cleared."
@@ -481,6 +546,18 @@ def clear_kill_switch(confirmation_text, updated_by="local-cli"):
             "updated_by": updated_by,
             "updated_at": data["system_controls"]["kill_switch_updated_at"],
         },
+    )
+
+    record_canonical_event(
+        EventFamily.GOVERNANCE,
+        "kill_switch_cleared",
+        subject="system_controls.kill_switch",
+        payload={
+            "previous_reason": previous_reason,
+            "updated_by": updated_by,
+            "updated_at": data["system_controls"]["kill_switch_updated_at"],
+        },
+        lineage={"data_file": DATA_FILE, "audit_file": ORDER_INTENT_AUDIT_FILE},
     )
 
     return "Kill switch cleared. Risk checks still require all normal policy controls."
@@ -626,11 +703,12 @@ def deserialize_approval(raw):
 
 
 def store_order_intent_record(intent, market, result):
+    policy_profile = active_risk_policy_profile()
     data = load_data()
     data["order_intents"][intent.id] = {
         "intent": serialize_order_intent(intent),
         "market_snapshot": serialize_market_snapshot(market),
-        "policy_profile": active_risk_policy_profile(),
+        "policy_profile": policy_profile,
         "last_status": result.status,
         "last_message": result.message,
         "broker_accepted": result.accepted,
@@ -638,6 +716,36 @@ def store_order_intent_record(intent, market, result):
         "updated_at": utc_now().isoformat(),
     }
     save_data(data)
+
+    record_canonical_event(
+        EventFamily.PORTFOLIO_EXECUTION,
+        "order_intent_recorded",
+        subject=f"{intent.side.value}:{intent.symbol}",
+        source_event_id=intent.id,
+        payload={
+            "intent_id": intent.id,
+            "symbol": intent.symbol,
+            "side": intent.side.value,
+            "quantity": intent.quantity,
+            "asset_class": intent.asset_class.value,
+            "order_type": intent.order_type.value,
+            "time_in_force": intent.time_in_force.value,
+            "expected_max_loss": intent.expected_max_loss,
+            "stop_loss_price": intent.stop_loss_price,
+            "reference_price": market.price,
+            "market_source": market.source,
+            "market_timestamp": market.timestamp.isoformat(),
+            "policy_profile": policy_profile,
+            "status": result.status,
+            "message": result.message,
+            "broker_accepted": result.accepted,
+        },
+        lineage={
+            "data_file": DATA_FILE,
+            "audit_file": ORDER_INTENT_AUDIT_FILE,
+            "market_source": market.source,
+        },
+    )
 
 
 def get_order_intent_record(intent_id):
@@ -734,7 +842,7 @@ def approve_order_intent(intent_id, confirmation_text, approved_by="local-cli"):
     data["approvals"][intent_id] = serialize_approval(approval)
     save_data(data)
 
-    JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE).append(
+    audit_event_id = JsonlAuditLogger(ORDER_INTENT_AUDIT_FILE).append(
         "human_approval_recorded",
         {
             "order_intent_id": intent_id,
@@ -743,6 +851,21 @@ def approve_order_intent(intent_id, confirmation_text, approved_by="local-cli"):
             "expires_at": approval.expires_at.isoformat(),
             "production_acknowledged": approval.production_acknowledged,
         },
+    )
+
+    record_canonical_event(
+        EventFamily.GOVERNANCE,
+        "human_approval_recorded",
+        subject=intent_id,
+        source_event_id=audit_event_id,
+        payload={
+            "order_intent_id": intent_id,
+            "approved_by": approved_by,
+            "approved_at": approval.approved_at.isoformat(),
+            "expires_at": approval.expires_at.isoformat(),
+            "production_acknowledged": approval.production_acknowledged,
+        },
+        lineage={"data_file": DATA_FILE, "audit_file": ORDER_INTENT_AUDIT_FILE},
     )
 
     return (
@@ -775,6 +898,27 @@ def recheck_order_intent(intent_id):
     )
 
     store_order_intent_record(intent, market, result)
+    record_canonical_event(
+        EventFamily.RISK,
+        "order_intent_rechecked",
+        subject=intent.id,
+        source_event_id=intent.id,
+        payload={
+            "intent_id": intent.id,
+            "symbol": intent.symbol,
+            "side": intent.side.value,
+            "status": result.status,
+            "message": result.message,
+            "broker_accepted": result.accepted,
+            "approval_present": approval is not None,
+            "policy_profile": active_risk_policy_profile(),
+        },
+        lineage={
+            "data_file": DATA_FILE,
+            "audit_file": ORDER_INTENT_AUDIT_FILE,
+            "market_source": market.source,
+        },
+    )
 
     reason_lines = []
     if result.message:
@@ -1191,6 +1335,7 @@ Real trading order intents:
   intent show INTENT_ID
   approve intent INTENT_ID APPROVE_LIVE_INTENT
   recheck intent INTENT_ID
+  events
 
 Settings:
   settings
@@ -1326,6 +1471,10 @@ def main():
                 intent_id = command[15:].strip()
                 print("\nATLAS:\n")
                 print(recheck_order_intent(intent_id))
+
+            elif lower in ["events", "events latest"]:
+                print("\nATLAS:\n")
+                print(event_summary())
 
             elif lower == "portfolio":
                 print("\nATLAS:\n")
