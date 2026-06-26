@@ -4,14 +4,15 @@ This refactor moves ATLAS away from command-parser behavior and toward a natural
 
 ## Current Implementation
 
-- `desktop/src/ai/systemPrompt.ts` stores the in-app ATLAS behavior rules.
-- `desktop/src/ai/contextBuilder.ts` builds app context for each assistant turn.
-- `desktop/src/ai/intentRouter.ts` maps natural user wording to app intents.
-- `desktop/src/ai/toolRegistry.ts` defines controlled tool activity records.
-- `desktop/src/ai/assistantRuntime.ts` coordinates one assistant turn.
-- `desktop/src/components/ai/` contains chat, input, tool activity, source, context, and confirmation UI.
-- `desktop/src/components/command/CommandPalette.tsx` adds Ctrl+K command mode for navigation and freeform assistant requests.
-- `desktop/src/layout/WorkspaceDimensions.tsx` exposes the blueprint dimensions: time, asset scope, intelligence lens, operating mode, confidence, and risk.
+- `ai/runtime/systemPrompt.ts` stores the in-app ATLAS behavior rules.
+- `ai/runtime/contextBuilder.ts` builds app context for each assistant turn.
+- `ai/runtime/intentRouter.ts` maps natural user wording to app intents.
+- `ai/runtime/toolRegistry.ts` defines controlled tool activity records.
+- `ai/runtime/assistantRuntime.ts` coordinates one assistant turn.
+- `ai/runtime/types.ts` owns assistant-facing runtime types.
+- `web-ui/src/components/ai/` contains chat, input, tool activity, source, context, and confirmation UI.
+- `web-ui/src/components/command/CommandPalette.tsx` adds Ctrl+K command mode for navigation and freeform assistant requests.
+- `web-ui/src/layout/WorkspaceDimensions.tsx` exposes the blueprint dimensions: time, asset scope, intelligence lens, operating mode, confidence, and risk.
 
 The runtime is intentionally conservative. If a real backend tool is not connected, ATLAS shows the planned blocked tool activity instead of inventing market data, web results, news, or broker actions.
 

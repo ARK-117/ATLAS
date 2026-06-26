@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { buildAppContext } from "./ai/contextBuilder";
-import { runAssistantTurn, userMessage } from "./ai/assistantRuntime";
+import { buildAppContext } from "../../ai/runtime/contextBuilder";
+import { runAssistantTurn, userMessage } from "../../ai/runtime/assistantRuntime";
 import { CommandPalette } from "./components/command/CommandPalette";
 import { AppShell } from "./layout/AppShell";
 import { AIChatPage } from "./pages/AIChatPage";

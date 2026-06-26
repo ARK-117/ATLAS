@@ -1,4 +1,4 @@
-import type { AppContext, AssistantIntent, ViewId } from "../types";
+import type { AppContext, AssistantIntent, ViewId } from "./types";
 
 const symbolAliases: Record<string, string> = {
   nvidia: "NVDA",

@@ -1,4 +1,4 @@
-import type { AppContext, AssistantMessage, AssistantRuntimeResult } from "../types";
+import type { AppContext, AssistantMessage, AssistantRuntimeResult } from "./types";
 import { routeIntent } from "./intentRouter";
 import {
   contextSummary,

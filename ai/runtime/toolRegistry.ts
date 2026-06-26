@@ -1,4 +1,4 @@
-import type { AppContext, AssistantAction, RiskState, ToolActivity, ViewId } from "../types";
+import type { AppContext, AssistantAction, RiskState, ToolActivity, ViewId } from "./types";
 
 const toolDescriptions: Record<string, string> = {
   web_search: "Search current public web sources through the backend web tool.",

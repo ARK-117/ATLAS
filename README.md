@@ -10,7 +10,9 @@ ATLAS is being built into a professional AI research and real-trading system. Th
 - Broker adapter boundary.
 - Internal simulated broker for testing execution flow.
 - Live broker execution intentionally unconfigured until credentials, reconciliation, production approval, and compliance controls are built.
-- First desktop UI scaffold under `desktop/`, with live trading locked by design.
+- Web UI scaffold under `web-ui/`, with live trading locked by design.
+- Native Tauri desktop shell under `desktop/`.
+- Frontend-safe assistant runtime under `ai/runtime/`.
 
 ## Current Commands
 
@@ -83,21 +85,39 @@ Read the live trading policy before implementing broker execution:
 - `docs/LIVE_TRADING_POLICY.md`
 - `docs/FINAL_TARGET_ANALYSIS.md`
 
-## Desktop UI
+## Project Layout
 
-The first UI layer is in `desktop/`.
+```text
+ai/        AI runtime and future AI service boundaries.
+atlas/     Python trading, risk, governance, broker, and event foundations.
+desktop/   Tauri native desktop shell and Windows launch helper.
+web-ui/    React, TypeScript, Vite, and Tailwind frontend.
+docs/      Architecture, safety, and implementation notes.
+tests/     Python foundation tests.
+```
+
+## Web UI And Desktop Shell
+
+The frontend is in `web-ui/`.
 
 Use the immediate static preview without a dev server:
 
 ```text
-desktop/preview/index.html
+web-ui/preview/index.html
 ```
 
 After installing the frontend toolchain:
 
 ```powershell
-cd desktop
+cd web-ui
 npm install
+npm run dev
+```
+
+The desktop helper remains available:
+
+```powershell
+cd desktop
 .\run-dev.cmd
 ```
 

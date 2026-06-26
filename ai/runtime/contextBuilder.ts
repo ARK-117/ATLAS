@@ -1,4 +1,4 @@
-import type { AppContext, ViewId } from "../types";
+import type { AppContext, ViewId } from "./types";
 
 const availableTools = [
   "web_search",

@@ -1,5 +1,3 @@
-import type { LucideIcon } from "lucide-react";
-
 export type ViewId =
   | "command-center"
   | "ai-chat"
@@ -18,9 +16,9 @@ export type ViewId =
   | "settings";
 
 export type RiskState = "normal" | "caution" | "high" | "blocked" | "emergency";
-export type Direction = "up" | "down" | "flat";
 export type AssistantRole = "user" | "assistant" | "system";
 export type ToolStatus = "pending" | "success" | "failed" | "blocked";
+
 export type AssistantIntent =
   | "general_chat"
   | "ui_help"
@@ -37,47 +35,6 @@ export type AssistantIntent =
   | "create_live_order_intent"
   | "open_app_view"
   | "settings_action";
-
-export interface NavigationItem {
-  id: ViewId;
-  label: string;
-  icon: LucideIcon;
-}
-
-export interface Metric {
-  label: string;
-  value: string;
-  detail: string;
-  trend: Direction;
-}
-
-export interface MarketTileData {
-  symbol: string;
-  name: string;
-  price: string;
-  change: string;
-  direction: Direction;
-  volume: string;
-  aiScore: number;
-  riskScore: number;
-  newsSignal: string;
-}
-
-export interface AgentActivity {
-  agent: string;
-  status: string;
-  task: string;
-  confidence: number;
-  warning?: string;
-}
-
-export interface AuditEvent {
-  time: string;
-  type: string;
-  subject: string;
-  result: string;
-  risk: RiskState;
-}
 
 export interface AppContext {
   activeView: ViewId;

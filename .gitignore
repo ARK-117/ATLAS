@@ -11,4 +11,8 @@ audit/
 configs/risk_profiles/*.local.json
 desktop/node_modules/
 desktop/dist/
+desktop/.vite/
+web-ui/node_modules/
+web-ui/dist/
+web-ui/.vite/
 desktop/src-tauri/target/
