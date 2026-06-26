@@ -9,8 +9,8 @@ export function BottomConsole() {
         <Terminal className="h-4 w-4 text-atlas-cyan" aria-hidden="true" />
         Event Console
       </div>
-      <div className="grid h-[92px] grid-cols-4 gap-3 overflow-hidden p-3">
-        {auditEvents.map((event) => (
+      <div className="grid h-[92px] grid-cols-2 gap-3 overflow-hidden p-3 2xl:grid-cols-4">
+        {auditEvents.slice(0, 4).map((event) => (
           <div key={`${event.time}-${event.subject}`} className="rounded-md border border-atlas-line bg-white/[0.03] p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-xs text-atlas-muted">{event.time}</span>

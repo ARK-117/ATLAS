@@ -4,10 +4,11 @@ export const systemStatus = {
   mode: "Research Mode",
   broker: "Disconnected",
   market: "Monitoring",
-  dataFreshness: "local preview",
-  ai: "Ollama pending",
+  dataFreshness: "UI mock data",
+  ai: "Backend pending",
   risk: "Normal",
-  killSwitch: "Inactive"
+  killSwitch: "Inactive",
+  packaging: "MSVC linker required"
 };
 
 export const commandMetrics: Metric[] = [
@@ -124,6 +125,20 @@ export const agents: AgentActivity[] = [
 ];
 
 export const auditEvents: AuditEvent[] = [
+  {
+    time: "10:06:11",
+    type: "toolchain",
+    subject: "Vite build passed",
+    result: "desktop web bundle ready",
+    risk: "normal"
+  },
+  {
+    time: "10:04:19",
+    type: "toolchain",
+    subject: "Tauri packaging blocked",
+    result: "MSVC linker missing",
+    risk: "caution"
+  },
   {
     time: "09:58:22",
     type: "governance",

@@ -32,8 +32,6 @@ Live trading is intentionally locked in this UI. The frontend does not place bro
 
 ## Immediate Preview
 
-This machine does not currently have Node/npm or Rust installed, so the Vite/Tauri app cannot be run here yet.
-
 Open this file directly in a browser:
 
 ```text
@@ -44,12 +42,25 @@ That preview is a zero-dependency version of the first command-center shell.
 
 ## Full Desktop Run
 
-After installing Node.js LTS, Rust, and Tauri prerequisites:
+After installing Node.js LTS:
 
 ```powershell
 cd desktop
 npm install
 npm run dev
+```
+
+For a local file preview of the compiled React app:
+
+```powershell
+cd desktop
+npm run build
+```
+
+Then open:
+
+```text
+desktop/dist/index.html
 ```
 
 For the desktop shell:
@@ -58,6 +69,8 @@ For the desktop shell:
 cd desktop
 npm run tauri:dev
 ```
+
+Native Tauri packaging on Windows also requires Rust and Microsoft Visual C++ Build Tools with the C++ workload. If the build fails with `link.exe not found`, install or repair Visual Studio Build Tools and include `Microsoft.VisualStudio.Workload.VCTools`.
 
 ## Build Direction
 

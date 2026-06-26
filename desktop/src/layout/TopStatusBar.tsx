@@ -4,20 +4,28 @@ import { StatusPill } from "../components/StatusPill";
 
 export function TopStatusBar() {
   return (
-    <header className="col-start-2 col-end-3 row-start-1 flex h-16 items-center justify-between border-b border-atlas-line bg-atlas-deck px-5 xl:col-end-4">
-      <div className="flex min-w-0 items-center gap-4">
-        <div>
+    <header className="col-start-2 col-end-3 row-start-1 flex h-16 min-w-0 items-center justify-between gap-3 border-b border-atlas-line bg-atlas-deck px-5 xl:col-end-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="min-w-[168px]">
           <div className="text-sm font-semibold text-atlas-text">ATLAS</div>
-          <div className="text-xs text-atlas-muted">Automated Trading, Learning, and Analysis System</div>
+          <div className="truncate text-xs text-atlas-muted">Automated Trading, Learning, and Analysis System</div>
         </div>
         <StatusPill label="Mode" value={systemStatus.mode} tone="info" />
-        <StatusPill label="Broker" value={systemStatus.broker} tone="warning" />
-        <StatusPill label="Market" value={systemStatus.market} tone="neutral" />
+        <div className="hidden 2xl:block">
+          <StatusPill label="Broker" value={systemStatus.broker} tone="warning" />
+        </div>
+        <div className="hidden 2xl:block">
+          <StatusPill label="Market" value={systemStatus.market} tone="neutral" />
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <StatusPill label="Data" value={systemStatus.dataFreshness} tone="neutral" />
-        <StatusPill label="AI" value={systemStatus.ai} tone="warning" />
+      <div className="flex min-w-0 items-center justify-end gap-2">
+        <div className="hidden xl:block">
+          <StatusPill label="Data" value={systemStatus.dataFreshness} tone="neutral" />
+        </div>
+        <div className="hidden 2xl:block">
+          <StatusPill label="AI" value={systemStatus.ai} tone="warning" />
+        </div>
         <StatusPill label="Risk" value={systemStatus.risk} tone="good" />
         <button type="button" className="atlas-danger-button">
           <Power className="h-4 w-4" aria-hidden="true" />

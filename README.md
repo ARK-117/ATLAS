@@ -87,7 +87,7 @@ Read the live trading policy before implementing broker execution:
 
 The first UI layer is in `desktop/`.
 
-This machine does not currently have Node/npm or Rust installed, so use the immediate static preview first:
+Use the immediate static preview without a dev server:
 
 ```text
 desktop/preview/index.html
@@ -100,3 +100,5 @@ cd desktop
 npm install
 npm run dev
 ```
+
+For native Tauri packaging on Windows, Rust and Microsoft Visual C++ Build Tools with the C++ workload are required.
