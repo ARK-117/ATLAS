@@ -90,6 +90,7 @@ Read the live trading policy before implementing broker execution:
 ```text
 ai/        AI runtime and future AI service boundaries.
 atlas/     Python trading, risk, governance, broker, and event foundations.
+backend/   Local HTTP API that connects the UI to ATLAS tools.
 desktop/   Tauri native desktop shell and Windows launch helper.
 web-ui/    React, TypeScript, Vite, and Tailwind frontend.
 docs/      Architecture, safety, and implementation notes.
@@ -114,7 +115,13 @@ npm install
 npm run dev
 ```
 
-The desktop helper remains available:
+Run the backend directly:
+
+```powershell
+.\backend\run-backend.cmd
+```
+
+The desktop helper starts the backend if needed, then starts the web UI:
 
 ```powershell
 cd desktop

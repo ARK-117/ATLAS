@@ -4,8 +4,8 @@ export const systemStatus = {
   mode: "Research Mode",
   broker: "Disconnected",
   market: "Monitoring",
-  dataFreshness: "UI mock data",
-  ai: "Backend pending",
+  dataFreshness: "Backend checked by API",
+  ai: "Local backend",
   risk: "Normal",
   killSwitch: "Inactive",
   packaging: "MSVC linker required"
@@ -106,7 +106,7 @@ export const agents: AgentActivity[] = [
   {
     agent: "Market Data Agent",
     status: "Waiting",
-    task: "Backend quote service not connected",
+    task: "Uses local backend quote service when API is running",
     confidence: 64,
     warning: "Data freshness is a preview value"
   },

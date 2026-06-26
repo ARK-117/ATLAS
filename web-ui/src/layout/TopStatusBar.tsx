@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { Clock, Keyboard, Power, Radio, ShieldAlert, Zap } from "lucide-react";
-import { systemStatus } from "../data/mockData";
 import { StatusPill } from "../components/StatusPill";
+import type { AtlasStatus } from "../services/api";
 import type { AppContext } from "../types";
 
 interface TopStatusBarProps {
   context: AppContext;
+  status: AtlasStatus;
   onCommandOpen: () => void;
 }
 
-export function TopStatusBar({ context, onCommandOpen }: TopStatusBarProps) {
+export function TopStatusBar({ context, status, onCommandOpen }: TopStatusBarProps) {
   const [localTime, setLocalTime] = useState(() => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 
   useEffect(() => {
@@ -27,12 +28,12 @@ export function TopStatusBar({ context, onCommandOpen }: TopStatusBarProps) {
           <div className="text-sm font-semibold text-atlas-text">ATLAS</div>
           <div className="truncate text-xs text-atlas-muted">Automated Trading, Learning, and Analysis System</div>
         </div>
-        <StatusPill label="Mode" value={systemStatus.mode} tone="info" />
+        <StatusPill label="Mode" value={status.mode} tone="info" />
         <div className="hidden 2xl:block">
-          <StatusPill label="Broker" value={systemStatus.broker} tone="warning" />
+          <StatusPill label="Broker" value={status.broker} tone="warning" />
         </div>
         <div className="hidden 2xl:block">
-          <StatusPill label="Market" value={systemStatus.market} tone="neutral" />
+          <StatusPill label="Market" value={status.market} tone="neutral" />
         </div>
         <StatusPill label="Asset" value={context.selectedSymbol} tone="neutral" />
       </div>
@@ -43,12 +44,12 @@ export function TopStatusBar({ context, onCommandOpen }: TopStatusBarProps) {
           Ctrl K
         </button>
         <div className="hidden xl:block">
-          <StatusPill label="Data" value={systemStatus.dataFreshness} tone="neutral" />
+          <StatusPill label="Data" value={status.dataFreshness} tone={status.connected ? "good" : "neutral"} />
         </div>
         <div className="hidden 2xl:block">
-          <StatusPill label="AI" value={systemStatus.ai} tone="warning" />
+          <StatusPill label="AI" value={status.ai} tone={status.connected ? "good" : "warning"} />
         </div>
-        <StatusPill label="Risk" value={systemStatus.risk} tone="good" />
+        <StatusPill label="Risk" value={status.risk} tone={status.killSwitchActive ? "danger" : "good"} />
         <button type="button" className="atlas-danger-button">
           <Power className="h-4 w-4" aria-hidden="true" />
           Kill Switch

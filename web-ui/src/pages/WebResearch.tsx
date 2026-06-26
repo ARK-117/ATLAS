@@ -1,14 +1,19 @@
 import { Globe2, Search } from "lucide-react";
 import { SourceCard } from "../components/ai/SourceCard";
 import { AIInput } from "../components/ai/AIInput";
+import type { AtlasStatus } from "../services/api";
 import type { AppContext } from "../types";
 
 interface WebResearchProps {
   context: AppContext;
+  status: AtlasStatus;
   onSend: (message: string) => void;
 }
 
-export function WebResearch({ context, onSend }: WebResearchProps) {
+export function WebResearch({ context, status, onSend }: WebResearchProps) {
+  const webSearchReady = Boolean(status.connected && status.tools?.webSearch);
+  const webpageFetchReady = Boolean(status.connected && status.tools?.webpageFetch);
+
   return (
     <div className="space-y-5">
       <div className="flex items-end justify-between gap-4">
@@ -41,18 +46,26 @@ export function WebResearch({ context, onSend }: WebResearchProps) {
           <div className="grid gap-3">
             <SourceCard
               title="Web search"
-              status="not-connected"
-              description="Will search current public sources through the backend web tool. ATLAS will not invent current results."
+              status={webSearchReady ? "ready" : "not-connected"}
+              description={
+                webSearchReady
+                  ? "Searches current public sources through the local backend web tool."
+                  : "Start the local backend to search current public sources. ATLAS will not invent current results."
+              }
             />
             <SourceCard
               title="Fetch webpage"
-              status="not-connected"
-              description="Will fetch and extract article content, title, date, author, and relevant facts."
+              status={webpageFetchReady ? "ready" : "not-connected"}
+              description={
+                webpageFetchReady
+                  ? "Fetches and extracts article text through the local backend page tool."
+                  : "Start the local backend with trafilatura available to fetch and extract webpage content."
+              }
             />
             <SourceCard
               title="Contradiction check"
               status="not-connected"
-              description="Will compare source claims and warn when sources disagree or are low confidence."
+              description="Not implemented yet. This will compare source claims and warn when sources disagree or are low confidence."
             />
           </div>
         </div>

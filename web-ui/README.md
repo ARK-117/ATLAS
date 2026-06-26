@@ -18,13 +18,22 @@ It does not own the assistant runtime. The UI imports that from:
 
 ## Run
 
+Start the local backend first:
+
+```powershell
+cd ..
+.\backend\run-backend.cmd
+```
+
+Then start the web UI:
+
 ```powershell
 cd web-ui
 npm install
 npm run dev
 ```
 
-The old desktop helper still works:
+The desktop helper starts both when possible:
 
 ```powershell
 cd desktop

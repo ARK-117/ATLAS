@@ -15,6 +15,6 @@ ai/
     types.ts
 ```
 
-The current runtime is frontend-safe and conservative. It can infer intent, build app context, create tool activity records, and block unavailable or unsafe actions. It does not claim to fetch real market data, web data, or broker state unless those tools are actually connected.
+The current runtime is frontend-safe and conservative. It can infer intent, build app context, create tool activity records, and block unavailable or unsafe actions. The web UI calls `backend/server.py` first; this runtime remains the offline fallback.
 
 Future backend AI services should be added separately under a backend service package when the FastAPI layer is introduced.

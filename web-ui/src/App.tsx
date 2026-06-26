@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildAppContext } from "../../ai/runtime/contextBuilder";
 import { runAssistantTurn, userMessage } from "../../ai/runtime/assistantRuntime";
 import { CommandPalette } from "./components/command/CommandPalette";
@@ -18,6 +18,8 @@ import { RiskCenter } from "./pages/RiskCenter";
 import { Settings } from "./pages/Settings";
 import { Watchlist } from "./pages/Watchlist";
 import { WebResearch } from "./pages/WebResearch";
+import { fetchAtlasStatus, sendAssistantTurn } from "./services/api";
+import type { AtlasStatus } from "./services/api";
 import type { AssistantAction, AssistantMessage, ToolActivity, ViewId } from "./types";
 
 const initialAssistantMessages: AssistantMessage[] = [
@@ -30,6 +32,17 @@ const initialAssistantMessages: AssistantMessage[] = [
   }
 ];
 
+const initialBackendStatus: AtlasStatus = {
+  mode: "Research Mode",
+  broker: "Disconnected",
+  market: "Monitoring",
+  dataFreshness: "Checking backend",
+  ai: "Checking backend",
+  risk: "Normal",
+  killSwitchActive: false,
+  connected: false
+};
+
 export default function App() {
   const [activeView, setActiveView] = useState<ViewId>("command-center");
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
@@ -38,6 +51,28 @@ export default function App() {
   const [assistantAction, setAssistantAction] = useState<AssistantAction | undefined>();
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<AtlasStatus>(initialBackendStatus);
+
+  useEffect(() => {
+    let active = true;
+
+    const refreshStatus = async () => {
+      const status = await fetchAtlasStatus();
+      if (active) {
+        setBackendStatus(status);
+      }
+    };
+
+    void refreshStatus();
+    const interval = window.setInterval(() => {
+      void refreshStatus();
+    }, 15_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const assistantContext = buildAppContext({
     activeView,
@@ -51,7 +86,7 @@ export default function App() {
     setActiveView("asset-deep-dive");
   };
 
-  const handleAssistantSend = (content: string) => {
+  const handleAssistantSend = async (content: string) => {
     const outgoing = userMessage(content);
     const context = buildAppContext({
       activeView,
@@ -59,12 +94,22 @@ export default function App() {
       recentQueries: [...recentQueries, content],
       watchlist: ["NVDA", "AAPL", "MSFT", "TSLA", "AMD", "SPY"]
     });
-    const result = runAssistantTurn(content, context);
 
-    setAssistantMessages((messages) => [...messages, outgoing, result.message]);
+    setAssistantMessages((messages) => [...messages, outgoing]);
+    setRecentQueries((queries) => [...queries, content].slice(-8));
+
+    let result;
+    try {
+      result = await sendAssistantTurn(content, context);
+      const status = await fetchAtlasStatus();
+      setBackendStatus(status);
+    } catch {
+      result = runAssistantTurn(content, context);
+    }
+
+    setAssistantMessages((messages) => [...messages, result.message]);
     setAssistantActivities((activities) => [...result.activities, ...activities].slice(0, 12));
     setAssistantAction(result.action);
-    setRecentQueries((queries) => [...queries, content].slice(-8));
 
     if (result.selectedSymbol) {
       setSelectedSymbol(result.selectedSymbol);
@@ -89,7 +134,7 @@ export default function App() {
       case "market-map":
         return <MarketMap onSelectAsset={openAsset} />;
       case "web-research":
-        return <WebResearch context={assistantContext} onSend={handleAssistantSend} />;
+        return <WebResearch context={assistantContext} status={backendStatus} onSend={handleAssistantSend} />;
       case "watchlist":
         return <Watchlist onSelectAsset={openAsset} />;
       case "asset-deep-dive":
@@ -125,6 +170,7 @@ export default function App() {
       assistantActivities={assistantActivities}
       assistantContext={assistantContext}
       assistantMessages={assistantMessages}
+      backendStatus={backendStatus}
       onAssistantSend={handleAssistantSend}
       onCommandOpen={() => setCommandOpen(true)}
       onViewChange={setActiveView}
