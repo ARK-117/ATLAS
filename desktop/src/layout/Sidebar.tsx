@@ -43,12 +43,12 @@ interface SidebarProps {
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   return (
-    <aside className="row-span-3 flex h-screen w-[188px] flex-col border-r border-atlas-line bg-atlas-deck">
+    <aside className="group/sidebar z-30 row-span-3 flex h-screen w-[76px] flex-col overflow-hidden border-r border-atlas-line bg-atlas-deck transition-[width] duration-200 hover:w-[224px] focus-within:w-[224px]">
       <div className="flex h-16 items-center gap-3 border-b border-atlas-line px-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-md border border-atlas-line bg-white/[0.03]">
           <Command className="h-4 w-4 text-atlas-blue" aria-hidden="true" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100">
           <div className="text-sm font-semibold text-atlas-text">ATLAS</div>
           <div className="truncate text-xs text-atlas-muted">Local workstation</div>
         </div>
@@ -62,24 +62,29 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             <button
               key={item.id}
               type="button"
-              className={`flex h-9 w-full items-center gap-2 rounded-md border px-2 text-left text-sm text-atlas-muted transition ${
+              className={`flex h-9 w-full items-center gap-3 rounded-md border px-3 text-left text-sm text-atlas-muted transition ${
                 active
                   ? "border-atlas-blue/50 bg-atlas-blue/10 text-atlas-text"
                   : "border-transparent hover:border-atlas-line hover:bg-white/5 hover:text-atlas-text"
               }`}
+              title={item.label}
               onClick={() => onViewChange(item.id)}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100">
+                {item.label}
+              </span>
             </button>
           );
         })}
       </nav>
 
       <div className="border-t border-atlas-line p-2">
-        <div className="flex h-10 items-center justify-center rounded-md border border-atlas-line bg-white/[0.03]">
+        <div className="flex h-10 items-center rounded-md border border-atlas-line bg-white/[0.03] px-3">
           <Activity className="h-4 w-4 text-atlas-green" aria-hidden="true" />
-          <span className="ml-2 text-xs text-atlas-muted">Research mode</span>
+          <span className="ml-3 whitespace-nowrap text-xs text-atlas-muted opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100">
+            Research mode
+          </span>
         </div>
       </div>
     </aside>

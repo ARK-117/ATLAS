@@ -8,8 +8,9 @@ This folder contains the first desktop UI layer for ATLAS.
 - React + TypeScript + Vite frontend scaffold.
 - Tailwind CSS theme and ATLAS component styles.
 - Dark command-center layout with:
-  - Left navigation rail.
+  - Compact hover navigation rail.
   - Top system status bar.
+  - Multi-dimensional workspace controls.
   - Main workspace.
   - Right AI intelligence panel.
   - Bottom event console.
@@ -43,6 +44,8 @@ The right assistant panel is always available. It accepts natural language such 
 - `create a paper trade idea for this`
 
 When backend tools are not connected, ATLAS shows blocked tool activity instead of inventing web results, market data, or broker actions.
+
+Press `Ctrl+K` inside the desktop UI to open Command Mode. It can open views, jump to the active asset, ask ATLAS a question, prepare a safe paper-trade idea, or route a freeform request through the assistant.
 
 ## Immediate Preview
 

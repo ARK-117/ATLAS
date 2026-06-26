@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { buildAppContext } from "./ai/contextBuilder";
 import { runAssistantTurn, userMessage } from "./ai/assistantRuntime";
+import { CommandPalette } from "./components/command/CommandPalette";
 import { AppShell } from "./layout/AppShell";
 import { AIChatPage } from "./pages/AIChatPage";
 import { Agents } from "./pages/Agents";
@@ -24,7 +25,7 @@ const initialAssistantMessages: AssistantMessage[] = [
     id: "assistant-welcome",
     role: "assistant",
     content:
-      "I’m ATLAS. You can speak normally: ask me to research an asset, compare symbols, explain risk, open a view, or prepare a safe paper-trade idea. I’ll show tool activity and won’t invent data.",
+      "I'm ATLAS. You can speak normally: ask me to research an asset, compare symbols, explain risk, open a view, or prepare a safe paper-trade idea. I'll show tool activity and won't invent data.",
     timestamp: new Date().toLocaleTimeString()
   }
 ];
@@ -36,6 +37,7 @@ export default function App() {
   const [assistantActivities, setAssistantActivities] = useState<ToolActivity[]>([]);
   const [assistantAction, setAssistantAction] = useState<AssistantAction | undefined>();
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const [commandOpen, setCommandOpen] = useState(false);
 
   const assistantContext = buildAppContext({
     activeView,
@@ -124,9 +126,19 @@ export default function App() {
       assistantContext={assistantContext}
       assistantMessages={assistantMessages}
       onAssistantSend={handleAssistantSend}
+      onCommandOpen={() => setCommandOpen(true)}
       onViewChange={setActiveView}
     >
       {renderView()}
+      <CommandPalette
+        activeView={activeView}
+        open={commandOpen}
+        selectedSymbol={selectedSymbol}
+        onAssistantSend={handleAssistantSend}
+        onOpenChange={setCommandOpen}
+        onSelectAsset={openAsset}
+        onViewChange={setActiveView}
+      />
     </AppShell>
   );
 }

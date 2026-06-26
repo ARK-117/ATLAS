@@ -10,6 +10,8 @@ This refactor moves ATLAS away from command-parser behavior and toward a natural
 - `desktop/src/ai/toolRegistry.ts` defines controlled tool activity records.
 - `desktop/src/ai/assistantRuntime.ts` coordinates one assistant turn.
 - `desktop/src/components/ai/` contains chat, input, tool activity, source, context, and confirmation UI.
+- `desktop/src/components/command/CommandPalette.tsx` adds Ctrl+K command mode for navigation and freeform assistant requests.
+- `desktop/src/layout/WorkspaceDimensions.tsx` exposes the blueprint dimensions: time, asset scope, intelligence lens, operating mode, confidence, and risk.
 
 The runtime is intentionally conservative. If a real backend tool is not connected, ATLAS shows the planned blocked tool activity instead of inventing market data, web results, news, or broker actions.
 
