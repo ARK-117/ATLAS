@@ -10,6 +10,7 @@ ATLAS is being built into a professional AI research and real-trading system. Th
 - Broker adapter boundary.
 - Internal simulated broker for testing execution flow.
 - Live broker execution intentionally unconfigured until credentials, reconciliation, production approval, and compliance controls are built.
+- First desktop UI scaffold under `desktop/`, with live trading locked by design.
 
 ## Current Commands
 
@@ -81,3 +82,21 @@ Read the live trading policy before implementing broker execution:
 
 - `docs/LIVE_TRADING_POLICY.md`
 - `docs/FINAL_TARGET_ANALYSIS.md`
+
+## Desktop UI
+
+The first UI layer is in `desktop/`.
+
+This machine does not currently have Node/npm or Rust installed, so use the immediate static preview first:
+
+```text
+desktop/preview/index.html
+```
+
+After installing the frontend toolchain:
+
+```powershell
+cd desktop
+npm install
+npm run dev
+```

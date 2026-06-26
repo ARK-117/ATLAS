@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #05070a;
+  color: #e6edf3;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 1180px;
+  background: #05070a;
+  font-family: Inter, Sora, "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #273241;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0f14;
+}
+
+@layer components {
+  .atlas-panel {
+    @apply rounded-lg border border-atlas-line bg-atlas-panel/90 shadow-[0_12px_36px_rgba(0,0,0,0.22)];
+  }
+
+  .atlas-button {
+    @apply inline-flex h-10 items-center gap-2 rounded-md border border-atlas-cyan/40 bg-atlas-cyan/10 px-3 text-sm font-semibold text-atlas-cyan transition hover:border-atlas-cyan hover:bg-atlas-cyan/20 disabled:border-atlas-line disabled:bg-white/5 disabled:text-atlas-muted;
+  }
+
+  .atlas-danger-button {
+    @apply inline-flex h-10 items-center gap-2 rounded-md border border-atlas-red/50 bg-atlas-red/10 px-3 text-sm font-semibold text-atlas-red transition hover:border-atlas-red hover:bg-atlas-red/20;
+  }
+
+  .atlas-chip {
+    @apply inline-flex h-9 items-center rounded-md border border-atlas-line bg-white/[0.03] px-3 text-sm text-atlas-muted transition hover:border-atlas-cyan/50 hover:text-atlas-text;
+  }
+
+  .atlas-input {
+    @apply h-10 w-full rounded-md border border-atlas-line bg-atlas-void px-3 text-sm text-atlas-text outline-none transition placeholder:text-atlas-muted focus:border-atlas-cyan/70;
+  }
+}

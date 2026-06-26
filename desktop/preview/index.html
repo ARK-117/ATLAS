@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ATLAS Desktop Preview</title>
+    <style>
+      :root {
+        --void: #05070a;
+        --deck: #0b0f14;
+        --panel: #111820;
+        --panel-soft: #15151b;
+        --line: #273241;
+        --text: #e6edf3;
+        --muted: #8d99a6;
+        --cyan: #30d5e8;
+        --blue: #3b82f6;
+        --violet: #8b5cf6;
+        --amber: #f5b84b;
+        --green: #36d399;
+        --red: #f05c5c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 1180px;
+        margin: 0;
+        background: var(--void);
+        color: var(--text);
+        font-family: Inter, "Segoe UI", system-ui, sans-serif;
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        min-height: 100vh;
+        grid-template-columns: 76px minmax(0, 1fr) 360px;
+        grid-template-rows: 64px minmax(0, 1fr) 132px;
+      }
+
+      .sidebar {
+        grid-row: 1 / span 3;
+        border-right: 1px solid var(--line);
+        background: var(--deck);
+      }
+
+      .logo {
+        display: grid;
+        height: 64px;
+        place-items: center;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .logo-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--cyan), transparent 55%);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--cyan), transparent 90%);
+        color: var(--cyan);
+        font-family: Consolas, monospace;
+        font-weight: 700;
+      }
+
+      nav {
+        display: grid;
+        gap: 6px;
+        padding: 12px 8px;
+      }
+
+      .nav-button {
+        height: 42px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .nav-button.active,
+      .nav-button:hover {
+        border-color: color-mix(in srgb, var(--cyan), transparent 50%);
+        background: color-mix(in srgb, var(--cyan), transparent 90%);
+        color: var(--cyan);
+      }
+
+      .topbar {
+        grid-column: 2 / span 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        background: var(--deck);
+        padding: 0 20px;
+      }
+
+      .brand-title {
+        font-weight: 700;
+      }
+
+      .brand-subtitle,
+      .muted {
+        color: var(--muted);
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pill {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .pill strong {
+        color: var(--text);
+      }
+
+      .kill {
+        border-color: color-mix(in srgb, var(--red), transparent 45%);
+        background: color-mix(in srgb, var(--red), transparent 90%);
+        color: var(--red);
+      }
+
+      main {
+        overflow: auto;
+        padding: 20px;
+      }
+
+      .right-panel {
+        border-left: 1px solid var(--line);
+        background: var(--deck);
+        overflow: auto;
+      }
+
+      .right-panel header,
+      .console-title {
+        border-bottom: 1px solid var(--line);
+        padding: 14px 16px;
+        font-weight: 700;
+      }
+
+      .right-panel-body {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .console {
+        grid-column: 2 / span 2;
+        border-top: 1px solid var(--line);
+        background: var(--deck);
+      }
+
+      .console-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--panel), transparent 8%);
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+      }
+
+      .panel.pad {
+        padding: 18px;
+      }
+
+      .section {
+        display: none;
+      }
+
+      .section.active {
+        display: block;
+      }
+
+      .page-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 4px 0 0;
+        font-size: 32px;
+      }
+
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      .eyebrow {
+        color: var(--cyan);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+
+      .two-col {
+        grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
+      }
+
+      .three-col {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .four-col {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .metric {
+        min-height: 126px;
+        padding: 16px;
+      }
+
+      .metric small,
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin-top: 18px;
+        font-family: Consolas, monospace;
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .tile {
+        min-height: 162px;
+        padding: 16px;
+        cursor: pointer;
+      }
+
+      .tile:hover {
+        border-color: color-mix(in srgb, var(--cyan), transparent 35%);
+      }
+
+      .tile-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .symbol {
+        font-family: Consolas, monospace;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .price {
+        margin-top: 26px;
+        font-family: Consolas, monospace;
+        font-size: 18px;
+      }
+
+      .up {
+        color: var(--green);
+      }
+
+      .down {
+        color: var(--red);
+      }
+
+      .caution {
+        color: var(--amber);
+      }
+
+      .blocked {
+        color: var(--red);
+      }
+
+      .badge {
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 9px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .badge.good {
+        border-color: color-mix(in srgb, var(--green), transparent 60%);
+        background: color-mix(in srgb, var(--green), transparent 90%);
+        color: var(--green);
+      }
+
+      .badge.warn {
+        border-color: color-mix(in srgb, var(--amber), transparent 60%);
+        background: color-mix(in srgb, var(--amber), transparent 90%);
+        color: var(--amber);
+      }
+
+      .badge.bad {
+        border-color: color-mix(in srgb, var(--red), transparent 60%);
+        background: color-mix(in srgb, var(--red), transparent 90%);
+        color: var(--red);
+      }
+
+      .chart {
+        height: 300px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(var(--line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--line) 1px, transparent 1px),
+          var(--void);
+        background-size: 48px 48px;
+        padding: 18px;
+      }
+
+      .spark {
+        height: 190px;
+        border-left: 2px solid var(--cyan);
+        border-bottom: 2px solid var(--cyan);
+        clip-path: polygon(0 76%, 12% 68%, 24% 72%, 36% 52%, 48% 58%, 60% 38%, 72% 46%, 84% 24%, 100% 30%, 100% 100%, 0 100%);
+        background: color-mix(in srgb, var(--cyan), transparent 85%);
+      }
+
+      .table-wrap {
+        overflow: hidden;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 20%);
+        padding: 12px 14px;
+        text-align: left;
+      }
+
+      .input {
+        width: 100%;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--void);
+        color: var(--text);
+        padding: 0 12px;
+      }
+
+      .button {
+        display: inline-flex;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid color-mix(in srgb, var(--cyan), transparent 55%);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--cyan), transparent 90%);
+        color: var(--cyan);
+        padding: 0 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .danger-button {
+        border-color: color-mix(in srgb, var(--red), transparent 45%);
+        background: color-mix(in srgb, var(--red), transparent 90%);
+        color: var(--red);
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .agent {
+        display: grid;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px;
+      }
+
+      .progress {
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .progress span {
+        display: block;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--cyan);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="logo"><div class="logo-mark">A</div></div>
+        <nav>
+          <button class="nav-button active" data-target="command">CC</button>
+          <button class="nav-button" data-target="market">MM</button>
+          <button class="nav-button" data-target="watchlist">WL</button>
+          <button class="nav-button" data-target="asset">AD</button>
+          <button class="nav-button" data-target="research">RL</button>
+          <button class="nav-button" data-target="portfolio">PF</button>
+          <button class="nav-button" data-target="risk">RC</button>
+          <button class="nav-button" data-target="paper">PT</button>
+          <button class="nav-button" data-target="live">LT</button>
+          <button class="nav-button" data-target="backtest">BT</button>
+          <button class="nav-button" data-target="agents">AI</button>
+          <button class="nav-button" data-target="audit">AU</button>
+          <button class="nav-button" data-target="settings">ST</button>
+        </nav>
+      </aside>
+
+      <header class="topbar">
+        <div>
+          <div class="brand-title">ATLAS</div>
+          <div class="brand-subtitle">Automated Trading, Learning, and Analysis System</div>
+        </div>
+        <div class="status-row">
+          <span class="pill">Mode <strong>Research</strong></span>
+          <span class="pill">Broker <strong>Disconnected</strong></span>
+          <span class="pill">Risk <strong>Normal</strong></span>
+          <button class="button danger-button">Kill Switch</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="section active" id="command">
+          <div class="page-head">
+            <div><div class="eyebrow">Mission Control</div><h1>Command Center</h1></div>
+            <span class="badge bad">Live execution locked</span>
+          </div>
+          <div class="grid metrics">
+            <div class="panel metric"><small>Portfolio Value</small><div class="metric-value">$100,000</div><p class="muted">simulation baseline</p></div>
+            <div class="panel metric"><small>Daily P/L</small><div class="metric-value">$0.00</div><p class="muted">no broker linked</p></div>
+            <div class="panel metric"><small>Positions</small><div class="metric-value">0</div><p class="muted">live locked</p></div>
+            <div class="panel metric"><small>Risk Score</small><div class="metric-value">18 / 100</div><p class="muted">normal controls</p></div>
+            <div class="panel metric"><small>Buying Power</small><div class="metric-value">$0.00</div><p class="muted">not configured</p></div>
+            <div class="panel metric"><small>AI Confidence</small><div class="metric-value">Medium</div><p class="muted">source-grounded</p></div>
+          </div>
+          <div class="grid two-col" style="margin-top:16px">
+            <div class="panel pad">
+              <h2>Market Pulse</h2>
+              <div class="chart"><div class="spark"></div></div>
+            </div>
+            <div class="stack">
+              <div class="panel pad"><h2>AI Briefing</h2><p class="muted">ATLAS is in research-first mode. Live execution stays locked until production readiness is approved.</p></div>
+              <div class="panel pad"><h2>Top Risks</h2><p><span class="badge bad">Broker unknown</span> <span class="badge warn">Data preview</span></p></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="market">
+          <div class="page-head"><div><div class="eyebrow">Multi-Dimensional View</div><h1>Market Map</h1></div></div>
+          <div class="grid three-col">
+            <div class="panel tile"><div class="tile-head"><div><div class="symbol">NVDA</div><div class="muted">NVIDIA</div></div><span class="up">+1.84%</span></div><div class="price">$127.40</div><p class="muted">AI 82 - Risk 61 - News Active</p></div>
+            <div class="panel tile"><div class="tile-head"><div><div class="symbol">MSFT</div><div class="muted">Microsoft</div></div><span class="up">+0.42%</span></div><div class="price">$471.22</div><p class="muted">AI 76 - Risk 34 - News Stable</p></div>
+            <div class="panel tile"><div class="tile-head"><div><div class="symbol">TSLA</div><div class="muted">Tesla</div></div><span class="down">-2.18%</span></div><div class="price">$181.72</div><p class="muted">AI 59 - Risk 78 - News Volatile</p></div>
+          </div>
+        </section>
+
+        <section class="section" id="watchlist">
+          <div class="page-head"><div><div class="eyebrow">Asset Monitor</div><h1>Watchlist</h1></div><button class="button">Add Symbol</button></div>
+          <div class="panel table-wrap"><table><thead><tr><th>Symbol</th><th>Asset</th><th>Price</th><th>Change</th><th>AI</th><th>Risk</th></tr></thead><tbody><tr><td>NVDA</td><td>NVIDIA</td><td>$127.40</td><td class="up">+1.84%</td><td>82</td><td>61</td></tr><tr><td>MSFT</td><td>Microsoft</td><td>$471.22</td><td class="up">+0.42%</td><td>76</td><td>34</td></tr><tr><td>TSLA</td><td>Tesla</td><td>$181.72</td><td class="down">-2.18%</td><td>59</td><td>78</td></tr></tbody></table></div>
+        </section>
+
+        <section class="section" id="asset">
+          <div class="page-head"><div><div class="eyebrow">Asset Deep Dive</div><h1>NVDA</h1><p class="muted">NVIDIA - AI score 82 - Risk 61</p></div><span class="badge warn">Caution</span></div>
+          <div class="grid two-col"><div class="panel pad"><h2>Chart Workspace</h2><div class="chart"><div class="spark"></div></div></div><div class="panel pad"><h2>AI Explanation</h2><p class="muted">Strong demand signals, but valuation and event risk require controlled sizing and clear invalidation.</p></div></div>
+        </section>
+
+        <section class="section" id="research">
+          <div class="page-head"><div><div class="eyebrow">AI Research System</div><h1>Research Lab</h1></div></div>
+          <div class="panel pad"><input class="input" value="Compare NVDA, MSFT, and AMD for risk-adjusted AI exposure" /></div>
+          <div class="grid two-col" style="margin-top:16px"><div class="panel pad"><h2>NVDA AI Infrastructure Thesis</h2><p class="muted">Strong demand signals remain visible, but valuation, supply constraints, and event risk require controlled position sizing.</p></div><div class="panel pad"><h2>Agent Debate</h2><p class="muted">Fundamental, technical, macro, risk, and portfolio agents produce separate views before final synthesis.</p></div></div>
+        </section>
+
+        <section class="section" id="portfolio">
+          <div class="page-head"><div><div class="eyebrow">Portfolio Intelligence</div><h1>Portfolio</h1></div></div>
+          <div class="panel table-wrap"><table><tbody><tr><td>Cash</td><td>$100,000</td><td>100%</td><td class="up">$0.00</td></tr><tr><td>NVDA</td><td>$0.00</td><td>0%</td><td>$0.00</td></tr></tbody></table></div>
+        </section>
+
+        <section class="section" id="risk">
+          <div class="page-head"><div><div class="eyebrow">Safety Layer</div><h1>Risk Center</h1></div><button class="button danger-button">Pause New Trades</button></div>
+          <div class="grid three-col"><div class="panel metric"><small>Max daily loss</small><div class="metric-value">1.0%</div></div><div class="panel metric"><small>Max drawdown</small><div class="metric-value">8.0%</div></div><div class="panel metric"><small>Live execution</small><div class="metric-value blocked">Locked</div></div></div>
+        </section>
+
+        <section class="section" id="paper">
+          <div class="page-head"><div><div class="eyebrow">Simulation</div><h1>Paper Trading</h1></div></div>
+          <div class="grid two-col"><div class="panel pad"><h2>Paper Trade Ticket</h2><input class="input" value="NVDA" style="margin-bottom:10px"/><button class="button">Run risk check</button></div><div class="panel pad"><h2>Simulated Account</h2><p class="muted">Cash $10,000 - Positions 0 - Daily P/L $0.00</p></div></div>
+        </section>
+
+        <section class="section" id="live">
+          <div class="panel pad" style="border-color:color-mix(in srgb,var(--red),transparent 45%);background:color-mix(in srgb,var(--red),transparent 90%)"><div class="eyebrow blocked">Live Mode Locked</div><h1>Real Money Requires Production Approval</h1><p class="muted">Broker, secrets, risk approval, human approval, reconciliation, and shutdown tests must pass first.</p></div>
+        </section>
+
+        <section class="section" id="backtest"><div class="page-head"><div><div class="eyebrow">Strategy Lab</div><h1>Backtesting</h1></div></div><div class="panel pad"><h2>Equity Curve</h2><div class="chart"><div class="spark"></div></div></div></section>
+        <section class="section" id="agents"><div class="page-head"><div><div class="eyebrow">Agent System</div><h1>AI Agents</h1></div></div><div class="grid three-col"><div class="panel pad">Router Agent<br><span class="muted">Ready</span></div><div class="panel pad">Risk Agent<br><span class="muted">Active</span></div><div class="panel pad">Audit Agent<br><span class="muted">Ready</span></div></div></section>
+        <section class="section" id="audit"><div class="page-head"><div><div class="eyebrow">Accountability</div><h1>Audit Logs</h1></div></div><div class="panel table-wrap"><table><tbody><tr><td>09:58:22</td><td>governance</td><td>live trading locked</td><td class="blocked">blocked</td></tr><tr><td>09:55:10</td><td>risk</td><td>order-intent gate</td><td class="caution">approval required</td></tr></tbody></table></div></section>
+        <section class="section" id="settings"><div class="page-head"><div><div class="eyebrow">Configuration</div><h1>Settings</h1></div></div><div class="grid two-col"><div class="panel pad"><h2>AI</h2><p class="muted">Local model, hosted model, temperature, memory settings.</p></div><div class="panel pad"><h2>Security</h2><p class="muted">Secrets storage, session timeout, audit logs.</p></div></div></section>
+      </main>
+
+      <aside class="right-panel">
+        <header>AI Intelligence</header>
+        <div class="right-panel-body">
+          <div class="panel pad"><h3>Current Context</h3><p class="muted">Research mode. Live execution locked.</p></div>
+          <div class="panel pad"><h3>Risk Warnings</h3><span class="badge bad">Live orders blocked</span> <span class="badge warn">Data preview</span></div>
+          <div class="panel pad"><h3>Agent Activity</h3><div class="agent">Risk Agent<div class="progress"><span style="width:98%"></span></div></div><div class="agent">Audit Agent<div class="progress"><span style="width:95%"></span></div></div></div>
+        </div>
+      </aside>
+
+      <footer class="console">
+        <div class="console-title">Event Console</div>
+        <div class="console-grid">
+          <div class="panel pad">09:58 - live trading locked</div>
+          <div class="panel pad">09:55 - risk gate active</div>
+          <div class="panel pad">09:50 - desktop shell ready</div>
+          <div class="panel pad">09:48 - event stream ready</div>
+        </div>
+      </footer>
+    </div>
+    <script>
+      const buttons = document.querySelectorAll(".nav-button");
+      const sections = document.querySelectorAll(".section");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          buttons.forEach((item) => item.classList.remove("active"));
+          sections.forEach((section) => section.classList.remove("active"));
+          button.classList.add("active");
+          document.getElementById(button.dataset.target).classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>

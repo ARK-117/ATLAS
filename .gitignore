@@ -9,3 +9,6 @@ reports/
 audit/
 /events/
 configs/risk_profiles/*.local.json
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
