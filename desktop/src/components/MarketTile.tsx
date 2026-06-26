@@ -17,7 +17,7 @@ export function MarketTile({ tile, onSelect }: MarketTileProps) {
   return (
     <button
       type="button"
-      className="atlas-panel group flex min-h-[164px] flex-col justify-between p-4 text-left transition hover:border-atlas-cyan/70 hover:shadow-glow"
+      className="atlas-panel flex min-h-[150px] flex-col justify-between p-4 text-left transition hover:border-atlas-blue/60 hover:bg-atlas-panelSoft focus:outline-none focus:ring-2 focus:ring-atlas-blue/40"
       onClick={() => onSelect?.(tile.symbol)}
     >
       <div className="flex items-start justify-between gap-3">
@@ -38,7 +38,7 @@ export function MarketTile({ tile, onSelect }: MarketTileProps) {
           <p className="text-sm text-atlas-text">{tile.volume}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-atlas-cyan" aria-hidden="true" />
+          <Activity className="h-4 w-4 text-atlas-blue" aria-hidden="true" />
           <span>AI {tile.aiScore}</span>
         </div>
         <div className="flex items-center gap-2">

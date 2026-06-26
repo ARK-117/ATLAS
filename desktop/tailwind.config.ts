@@ -6,19 +6,19 @@ export default {
     extend: {
       colors: {
         atlas: {
-          void: "#05070A",
-          deck: "#0B0F14",
-          panel: "#111820",
-          panelSoft: "#15151B",
-          line: "#273241",
-          cyan: "#30D5E8",
-          blue: "#3B82F6",
-          violet: "#8B5CF6",
-          amber: "#F5B84B",
-          green: "#36D399",
-          red: "#F05C5C",
-          text: "#E6EDF3",
-          muted: "#8D99A6"
+          void: "#080A0D",
+          deck: "#0D1117",
+          panel: "#11161D",
+          panelSoft: "#171D26",
+          line: "#29313D",
+          cyan: "#5BA7C8",
+          blue: "#4F7FB8",
+          violet: "#6F6A8F",
+          amber: "#C99945",
+          green: "#5BAE78",
+          red: "#D35F5F",
+          text: "#E7ECF2",
+          muted: "#9AA4B2"
         }
       },
       fontFamily: {
@@ -26,7 +26,7 @@ export default {
         mono: ["JetBrains Mono", "Cascadia Mono", "Consolas", "monospace"]
       },
       boxShadow: {
-        glow: "0 0 24px rgba(48, 213, 232, 0.16)"
+        glow: "0 10px 28px rgba(0, 0, 0, 0.24)"
       }
     }
   },

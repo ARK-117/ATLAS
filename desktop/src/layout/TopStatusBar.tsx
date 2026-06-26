@@ -1,8 +1,13 @@
 import { Clock, Power, Radio, ShieldAlert, Zap } from "lucide-react";
 import { systemStatus } from "../data/mockData";
 import { StatusPill } from "../components/StatusPill";
+import type { AppContext } from "../types";
 
-export function TopStatusBar() {
+interface TopStatusBarProps {
+  context: AppContext;
+}
+
+export function TopStatusBar({ context }: TopStatusBarProps) {
   return (
     <header className="col-start-2 col-end-3 row-start-1 flex h-16 min-w-0 items-center justify-between gap-3 border-b border-atlas-line bg-atlas-deck px-5 xl:col-end-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -17,6 +22,7 @@ export function TopStatusBar() {
         <div className="hidden 2xl:block">
           <StatusPill label="Market" value={systemStatus.market} tone="neutral" />
         </div>
+        <StatusPill label="Asset" value={context.selectedSymbol} tone="neutral" />
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-2">

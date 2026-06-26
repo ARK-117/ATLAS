@@ -4,8 +4,8 @@
 
 :root {
   color-scheme: dark;
-  background: #05070a;
-  color: #e6edf3;
+  background: #080a0d;
+  color: #e7ecf2;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,14 +25,15 @@ body,
 
 body {
   min-width: 1180px;
-  background: #05070a;
+  background: #080a0d;
   font-family: Inter, Sora, "Segoe UI", system-ui, sans-serif;
   letter-spacing: 0;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -49,32 +50,36 @@ select:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #273241;
+  background: #29313d;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0f14;
+  background: #0d1117;
 }
 
 @layer components {
   .atlas-panel {
-    @apply rounded-lg border border-atlas-line bg-atlas-panel/90 shadow-[0_12px_36px_rgba(0,0,0,0.22)];
+    @apply rounded-md border border-atlas-line bg-atlas-panel shadow-[0_10px_24px_rgba(0,0,0,0.20)];
   }
 
   .atlas-button {
-    @apply inline-flex h-10 items-center gap-2 rounded-md border border-atlas-cyan/40 bg-atlas-cyan/10 px-3 text-sm font-semibold text-atlas-cyan transition hover:border-atlas-cyan hover:bg-atlas-cyan/20 disabled:border-atlas-line disabled:bg-white/5 disabled:text-atlas-muted;
+    @apply inline-flex h-9 items-center gap-2 rounded-md border border-atlas-line bg-atlas-panelSoft px-3 text-sm font-medium text-atlas-text transition hover:border-atlas-blue hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-atlas-blue/50 disabled:border-atlas-line disabled:bg-white/[0.02] disabled:text-atlas-muted;
   }
 
   .atlas-danger-button {
-    @apply inline-flex h-10 items-center gap-2 rounded-md border border-atlas-red/50 bg-atlas-red/10 px-3 text-sm font-semibold text-atlas-red transition hover:border-atlas-red hover:bg-atlas-red/20;
+    @apply inline-flex h-9 items-center gap-2 rounded-md border border-atlas-red/50 bg-atlas-red/10 px-3 text-sm font-medium text-atlas-red transition hover:border-atlas-red hover:bg-atlas-red/15 focus:outline-none focus:ring-2 focus:ring-atlas-red/50;
   }
 
   .atlas-chip {
-    @apply inline-flex h-9 items-center rounded-md border border-atlas-line bg-white/[0.03] px-3 text-sm text-atlas-muted transition hover:border-atlas-cyan/50 hover:text-atlas-text;
+    @apply inline-flex h-8 items-center rounded-md border border-atlas-line bg-white/[0.02] px-3 text-sm text-atlas-muted transition hover:border-atlas-blue/50 hover:text-atlas-text focus:outline-none focus:ring-2 focus:ring-atlas-blue/40;
   }
 
   .atlas-input {
-    @apply h-10 w-full rounded-md border border-atlas-line bg-atlas-void px-3 text-sm text-atlas-text outline-none transition placeholder:text-atlas-muted focus:border-atlas-cyan/70;
+    @apply h-10 w-full rounded-md border border-atlas-line bg-atlas-void px-3 text-sm text-atlas-text outline-none transition placeholder:text-atlas-muted focus:border-atlas-blue focus:ring-2 focus:ring-atlas-blue/30;
+  }
+
+  .atlas-textarea {
+    @apply min-h-[88px] w-full resize-none rounded-md border border-atlas-line bg-atlas-void px-3 py-2 text-sm text-atlas-text outline-none transition placeholder:text-atlas-muted focus:border-atlas-blue focus:ring-2 focus:ring-atlas-blue/30;
   }
 }

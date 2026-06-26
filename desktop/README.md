@@ -15,7 +15,9 @@ This folder contains the first desktop UI layer for ATLAS.
   - Bottom event console.
 - MVP pages:
   - Command Center.
+  - AI Chat.
   - Market Map.
+  - Web Research.
   - Watchlist.
   - Asset Deep Dive.
   - Research Lab.
@@ -29,6 +31,18 @@ This folder contains the first desktop UI layer for ATLAS.
   - Settings.
 
 Live trading is intentionally locked in this UI. The frontend does not place broker orders and does not bypass the Python risk engine.
+
+## AI Interaction
+
+The right assistant panel is always available. It accepts natural language such as:
+
+- `research nvidia`
+- `why did this move today?`
+- `compare NVDA and AMD`
+- `open risk center`
+- `create a paper trade idea for this`
+
+When backend tools are not connected, ATLAS shows blocked tool activity instead of inventing web results, market data, or broker actions.
 
 ## Immediate Preview
 

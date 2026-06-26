@@ -14,8 +14,8 @@ export function CommandCenter({ onSelectAsset }: CommandCenterProps) {
     <div className="space-y-5">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase text-atlas-cyan">Mission Control</p>
-          <h1 className="mt-1 text-3xl font-semibold text-atlas-text">Command Center</h1>
+          <p className="text-xs uppercase text-atlas-blue">System Overview</p>
+          <h1 className="mt-1 text-2xl font-semibold text-atlas-text">Command Center</h1>
         </div>
         <RiskBadge state="blocked" label="Live execution locked" />
       </div>
@@ -30,7 +30,7 @@ export function CommandCenter({ onSelectAsset }: CommandCenterProps) {
         <div className="atlas-panel p-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <BarChart3 className="h-5 w-5 text-atlas-cyan" aria-hidden="true" />
+              <BarChart3 className="h-5 w-5 text-atlas-blue" aria-hidden="true" />
               <div>
                 <h2 className="text-lg font-semibold text-atlas-text">Market Pulse</h2>
                 <p className="text-sm text-atlas-muted">Index trend, breadth, and risk tone</p>
@@ -74,7 +74,7 @@ export function CommandCenter({ onSelectAsset }: CommandCenterProps) {
 
           <section className="atlas-panel p-5">
             <div className="flex items-center gap-3">
-              <ClipboardList className="h-5 w-5 text-atlas-cyan" aria-hidden="true" />
+              <ClipboardList className="h-5 w-5 text-atlas-blue" aria-hidden="true" />
               <h2 className="text-lg font-semibold text-atlas-text">AI Briefing</h2>
             </div>
             <p className="mt-4 text-sm leading-6 text-atlas-muted">

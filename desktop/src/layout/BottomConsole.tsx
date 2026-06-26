@@ -1,8 +1,23 @@
 import { Terminal } from "lucide-react";
 import { auditEvents } from "../data/mockData";
 import { RiskBadge } from "../components/RiskBadge";
+import type { RiskState, ToolActivity } from "../types";
 
-export function BottomConsole() {
+interface BottomConsoleProps {
+  activities: ToolActivity[];
+}
+
+export function BottomConsole({ activities }: BottomConsoleProps) {
+  const toolEvents = activities.slice(0, 4).map((activity) => {
+    const risk: RiskState = activity.status === "blocked" ? "caution" : activity.status === "failed" ? "blocked" : "normal";
+    return {
+      time: activity.timestamp,
+      subject: activity.summary,
+      risk
+    };
+  });
+  const events = toolEvents.length > 0 ? toolEvents : auditEvents.slice(0, 4);
+
   return (
     <footer className="col-start-2 col-end-3 row-start-3 h-[132px] border-t border-atlas-line bg-atlas-deck xl:col-end-4">
       <div className="flex h-10 items-center gap-2 border-b border-atlas-line px-4 text-sm font-semibold text-atlas-text">
@@ -10,7 +25,7 @@ export function BottomConsole() {
         Event Console
       </div>
       <div className="grid h-[92px] grid-cols-2 gap-3 overflow-hidden p-3 2xl:grid-cols-4">
-        {auditEvents.slice(0, 4).map((event) => (
+        {events.map((event) => (
           <div key={`${event.time}-${event.subject}`} className="rounded-md border border-atlas-line bg-white/[0.03] p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-xs text-atlas-muted">{event.time}</span>
