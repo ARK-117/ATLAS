@@ -98,7 +98,7 @@ After installing the frontend toolchain:
 ```powershell
 cd desktop
 npm install
-npm run dev
+.\run-dev.cmd
 ```
 
 For native Tauri packaging on Windows, Rust and Microsoft Visual C++ Build Tools with the C++ workload are required.

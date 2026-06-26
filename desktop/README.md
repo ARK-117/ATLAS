@@ -47,8 +47,10 @@ After installing Node.js LTS:
 ```powershell
 cd desktop
 npm install
-npm run dev
+.\run-dev.cmd
 ```
+
+PowerShell requires the `.\` prefix for scripts in the current folder.
 
 For a local file preview of the compiled React app:
 
